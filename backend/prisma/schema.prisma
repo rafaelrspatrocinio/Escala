@@ -1,0 +1,95 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// SQLite não suporta enums nativos no Prisma; roles e status usam String
+// com valores esperados: Role = "ADMIN" | "VOLUNTEER"; SlotStatus = "PENDING" | "CONFIRMED" | "DECLINED"
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  phone        String
+  passwordHash String
+  role         String    @default("VOLUNTEER")
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+
+  ministries     VolunteerMinistry[]
+  unavailability Unavailability[]
+  scheduleSlots  ScheduleSlot[]
+}
+
+model Ministry {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  volunteers    VolunteerMinistry[]
+  eventNeeds    EventMinistryNeed[]
+  scheduleSlots ScheduleSlot[]
+}
+
+model VolunteerMinistry {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  ministryId Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ministry   Ministry @relation(fields: [ministryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ministryId])
+}
+
+model Event {
+  id        Int      @id @default(autoincrement())
+  name      String
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  needs         EventMinistryNeed[]
+  scheduleSlots ScheduleSlot[]
+}
+
+model EventMinistryNeed {
+  id         Int      @id @default(autoincrement())
+  eventId    Int
+  ministryId Int
+  slotsCount Int      @default(1)
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ministry   Ministry @relation(fields: [ministryId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, ministryId])
+}
+
+model Unavailability {
+  id     Int      @id @default(autoincrement())
+  userId Int
+  date   DateTime
+  reason String?
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model ScheduleSlot {
+  id                Int       @id @default(autoincrement())
+  eventId           Int
+  ministryId        Int
+  userId            Int
+  status            String    @default("PENDING")
+  notified          Boolean   @default(false)
+  notifiedAt        DateTime?
+  notificationError String?
+  createdAt         DateTime  @default(now())
+
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ministry Ministry @relation(fields: [ministryId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, ministryId, userId])
+}
