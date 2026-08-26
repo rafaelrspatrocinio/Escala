@@ -78,6 +78,20 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 26/08/2026 (parte 4 — lembretes automáticos via WhatsApp)
+- Implementado agendamento automático de notificações para os voluntários:
+  - **24 horas antes do evento**: job de cron (`*/15 * * * *`, verifica a cada 15 min) que envia lembrete quando faltam ≤24h para o evento.
+  - **No dia do evento, às 9h**: job de cron (`0 9 * * *`) que envia lembrete pela manhã do próprio dia do evento.
+- `backend/prisma/schema.prisma`: adicionados os campos `reminder24hSentAt` e `reminderDaySentAt` em `ScheduleSlot`, para controlar idempotência (evitar reenvio do mesmo lembrete). Migration criada e aplicada: `20260826192927_add_reminder_fields`.
+- Criado `backend/src/reminders.js`:
+  - `send24hReminders()`: busca `ScheduleSlot` com `status` em `PENDING`/`CONFIRMED`, evento entre agora e agora+24h, e `reminder24hSentAt` nulo; envia mensagem via `sendMessage` (fila/throttle já existente em `whatsapp.js`) e marca `reminder24hSentAt`.
+  - `sendDayOfReminders()`: busca slots com `reminderDaySentAt` nulo cujo evento é no mesmo dia (comparação de ano/mês/dia); envia mensagem e marca `reminderDaySentAt`.
+  - `startReminderJobs()`: registra os dois `cron.schedule` acima (usa a lib `node-cron`, adicionada como dependência do backend).
+- `backend/src/index.js`: chama `startReminderJobs()` dentro do `app.listen(...)`, junto com `initWhatsApp()`.
+- `backend/package.json`: adicionada dependência `node-cron`.
+- Observação importante: o agendador de **atribuição de voluntários** (`backend/src/scheduler.js`, `generateScheduleForEvent`/`generateScheduleForUpcoming`) é diferente do agendador de **lembretes por horário** (`backend/src/reminders.js`, novo nesta sessão) — o primeiro decide quem serve, o segundo decide quando notificar.
+- Testado: módulo `reminders.js` carrega sem erro, `index.js` carrega sem erro (só não foi possível validar `app.listen` porque já havia uma instância do backend rodando na porta 3001 neste ambiente).
+
 ### Sessão de 26/08/2026 (parte 3 — melhorias de layout)
 - Navbar (`frontend/src/components/Navbar.jsx`) responsiva: menu hambúrguer em telas ≤720px, marca "Escala" visível em mobile, bloco de usuário/"Sair" sempre alinhado à direita (`margin-left: auto` em `.navbar-right`).
 - Tabelas de todas as páginas (`AdminSchedule`, `AdminUsers`, `AdminEvents`, `AdminMinistries`, `VolunteerHome`, `VolunteerUnavailability`) envolvidas por `.table-wrap` com `overflow-x: auto`, evitando vazamento em mobile.

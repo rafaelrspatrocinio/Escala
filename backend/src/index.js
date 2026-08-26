@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { initWhatsApp } = require('./whatsapp');
+const { startReminderJobs } = require('./reminders');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -31,4 +32,5 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`[Escala] Backend rodando em http://localhost:${PORT}`);
   initWhatsApp().catch((err) => console.error('[WhatsApp] Falha ao iniciar:', err));
+  startReminderJobs();
 });

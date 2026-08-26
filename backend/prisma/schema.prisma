@@ -85,6 +85,8 @@ model ScheduleSlot {
   notified          Boolean   @default(false)
   notifiedAt        DateTime?
   notificationError String?
+  reminder24hSentAt DateTime?
+  reminderDaySentAt DateTime?
   createdAt         DateTime  @default(now())
 
   event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
