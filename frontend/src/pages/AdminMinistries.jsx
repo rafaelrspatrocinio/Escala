@@ -46,6 +46,7 @@ export default function AdminMinistries() {
         {error && <div className="error">{error}</div>}
       </div>
       <div className="card">
+        <div className="table-wrap">
         <table>
           <thead>
             <tr>
@@ -66,6 +67,7 @@ export default function AdminMinistries() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

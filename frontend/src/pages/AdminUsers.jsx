@@ -131,6 +131,7 @@ export default function AdminUsers() {
         </form>
       </div>
       <div className="card">
+        <div className="table-wrap">
         <table>
           <thead>
             <tr>
@@ -200,6 +201,7 @@ export default function AdminUsers() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

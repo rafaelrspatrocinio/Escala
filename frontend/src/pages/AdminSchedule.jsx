@@ -89,6 +89,7 @@ export default function AdminSchedule() {
                 Gerar/completar escala deste evento
               </button>
             </div>
+            <div className="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -155,6 +156,7 @@ export default function AdminSchedule() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         );
       })}

@@ -23,6 +23,7 @@ export default function VolunteerHome() {
       <h1>Minha Escala</h1>
       <div className="card">
         {slots.length === 0 && <p>Você ainda não foi escalado para nenhum evento futuro.</p>}
+        <div className="table-wrap">
         <table>
           <thead>
             <tr>
@@ -58,6 +59,7 @@ export default function VolunteerHome() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

@@ -78,6 +78,12 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 26/08/2026 (parte 3 — melhorias de layout)
+- Navbar (`frontend/src/components/Navbar.jsx`) responsiva: menu hambúrguer em telas ≤720px, marca "Escala" visível em mobile, bloco de usuário/"Sair" sempre alinhado à direita (`margin-left: auto` em `.navbar-right`).
+- Tabelas de todas as páginas (`AdminSchedule`, `AdminUsers`, `AdminEvents`, `AdminMinistries`, `VolunteerHome`, `VolunteerUnavailability`) envolvidas por `.table-wrap` com `overflow-x: auto`, evitando vazamento em mobile.
+- `frontend/src/index.css`: cores, espaçamentos e raios de borda centralizados em variáveis CSS (`:root`); cor primária trocada de verde (`#1f4b3f`) para preto (`#1a1a1a`/`#000000`); breakpoints adicionados para `.container`, `.grid-2` e `.login-box`.
+- Containers Docker de teste (`escala-frontend`) recompilados e recriados manualmente (`docker build` + `docker run`) para validar as mudanças de layout nesta sessão.
+
 ### Sessão de 26/08/2026 (parte 2)
 - Implementado delay/throttle no envio de mensagens do WhatsApp (`backend/src/whatsapp.js`) para reduzir risco de bloqueio ao notificar escalas em lote (cenário de ~50 usuários).
   - `sendMessage` agora enfileira os envios (`sendQueue`) garantindo execução sequencial, mesmo quando chamado em paralelo (ex.: `Promise.all` em `backend/src/routes/schedule.js`).

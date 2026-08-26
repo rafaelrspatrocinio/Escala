@@ -52,6 +52,7 @@ export default function VolunteerUnavailability() {
         {error && <div className="error">{error}</div>}
       </div>
       <div className="card">
+        <div className="table-wrap">
         <table>
           <thead>
             <tr>
@@ -74,6 +75,7 @@ export default function VolunteerUnavailability() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

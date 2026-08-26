@@ -109,6 +109,7 @@ export default function AdminEvents() {
       </div>
 
       <div className="card">
+        <div className="table-wrap">
         <table>
           <thead>
             <tr>
@@ -139,6 +140,7 @@ export default function AdminEvents() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
