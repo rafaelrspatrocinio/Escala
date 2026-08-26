@@ -30,6 +30,7 @@ async function initWhatsApp() {
     'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
     '/usr/bin/google-chrome',
     '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
   ].filter(Boolean);
   const executablePath = candidatePaths.find((p) => fs.existsSync(p));
 
@@ -42,7 +43,11 @@ async function initWhatsApp() {
 
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
-    puppeteer: { headless: true, executablePath },
+    puppeteer: {
+      headless: true,
+      executablePath,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    },
   });
 
   client.on('qr', (qr) => {

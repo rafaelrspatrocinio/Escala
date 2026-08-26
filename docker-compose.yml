@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    container_name: escala-backend
+    env_file:
+      - ./backend/.env
+    ports:
+      - "3001:3001"
+    volumes:
+      - backend_prisma:/app/prisma
+      - wwebjs_auth:/app/.wwebjs_auth
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: escala-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend_prisma:
+  wwebjs_auth:
