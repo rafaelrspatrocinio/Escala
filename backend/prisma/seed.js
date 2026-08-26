@@ -4,13 +4,13 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash('admin123', 10);
+  const passwordHash = await bcrypt.hash('admin', 10);
   await prisma.user.upsert({
-    where: { email: 'admin@igreja.com' },
-    update: {},
+    where: { email: 'admin@admin' },
+    update: { passwordHash },
     create: {
       name: 'Administrador',
-      email: 'admin@igreja.com',
+      email: 'admin@admin',
       phone: '5511999999999',
       passwordHash,
       role: 'ADMIN',
@@ -22,7 +22,7 @@ async function main() {
     await prisma.ministry.upsert({ where: { name }, update: {}, create: { name } });
   }
 
-  console.log('Seed concluído. Login admin: admin@igreja.com / admin123');
+  console.log('Seed concluído. Login admin: admin@admin / admin');
 }
 
 main()

@@ -4,6 +4,20 @@ const prisma = new PrismaClient();
 let client = null;
 let ready = false;
 
+const MIN_DELAY_MS = Number(process.env.WHATSAPP_MIN_DELAY_MS) || 2000;
+const MAX_DELAY_MS = Number(process.env.WHATSAPP_MAX_DELAY_MS) || 4000;
+
+let sendQueue = Promise.resolve();
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function randomDelay() {
+  const span = Math.max(0, MAX_DELAY_MS - MIN_DELAY_MS);
+  return MIN_DELAY_MS + Math.floor(Math.random() * (span + 1));
+}
+
 function normalizePhone(phone) {
   return String(phone || '').replace(/\D/g, '');
 }
@@ -105,7 +119,7 @@ async function handleIncomingMessage(message) {
   }
 }
 
-async function sendMessage(phone, text) {
+async function sendMessageNow(phone, text) {
   const digits = normalizePhone(phone);
   if (!digits) return { sent: false, reason: 'Telefone inválido' };
   if (process.env.WHATSAPP_ENABLED !== 'true' || !client || !ready) {
@@ -120,6 +134,16 @@ async function sendMessage(phone, text) {
     console.error('[WhatsApp] Erro ao enviar mensagem:', err);
     return { sent: false, reason: err.message };
   }
+}
+
+function sendMessage(phone, text) {
+  const task = sendQueue.then(async () => {
+    const result = await sendMessageNow(phone, text);
+    if (result.sent) await sleep(randomDelay());
+    return result;
+  });
+  sendQueue = task.catch(() => {});
+  return task;
 }
 
 module.exports = { initWhatsApp, sendMessage };

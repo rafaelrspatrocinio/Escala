@@ -78,6 +78,12 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 26/08/2026 (parte 2)
+- Implementado delay/throttle no envio de mensagens do WhatsApp (`backend/src/whatsapp.js`) para reduzir risco de bloqueio ao notificar escalas em lote (cenário de ~50 usuários).
+  - `sendMessage` agora enfileira os envios (`sendQueue`) garantindo execução sequencial, mesmo quando chamado em paralelo (ex.: `Promise.all` em `backend/src/routes/schedule.js`).
+  - Após cada envio bem-sucedido, aguarda um delay aleatório entre `WHATSAPP_MIN_DELAY_MS` (padrão 2000ms) e `WHATSAPP_MAX_DELAY_MS` (padrão 4000ms), configuráveis via `.env`.
+- Ajustado seed (`backend/prisma/seed.js`): admin de teste agora usa `admin@admin` / `admin` (antes `admin@igreja.com` / `admin123`) e o upsert passou a atualizar a senha (`update: { passwordHash }`) em execuções futuras do seed.
+
 ### Sessão de 26/08/2026
 - Retomado o trabalho de dockerização iniciado na sessão anterior (backend já buildava, frontend estava pendente).
 - Build do frontend (`docker build ./frontend`): sucesso.
