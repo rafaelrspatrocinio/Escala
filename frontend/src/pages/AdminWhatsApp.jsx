@@ -63,7 +63,11 @@ export default function AdminWhatsApp() {
         {qr && (
           <div>
             <p>Escaneie este QR code com o WhatsApp do número da igreja (Aparelhos conectados → Conectar um aparelho):</p>
-            <img src={qr} alt="QR Code do WhatsApp" style={{ width: 260, height: 260 }} />
+            <img
+              src={qr}
+              alt="QR Code do WhatsApp"
+              style={{ width: '100%', maxWidth: 260, height: 'auto', display: 'block' }}
+            />
           </div>
         )}
         {error && <div className="error">{error}</div>}
