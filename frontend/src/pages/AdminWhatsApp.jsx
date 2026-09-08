@@ -60,6 +60,9 @@ export default function AdminWhatsApp() {
         {status && status.enabled && status.executableFound && !status.ready && !qr && (
           <p>{status.initializing ? 'Conectando...' : 'WhatsApp desconectado.'}</p>
         )}
+        {status?.lastError && (
+          <p className="error">Último erro: {status.lastError}</p>
+        )}
         {qr && (
           <div>
             <p>Escaneie este QR code com o WhatsApp do número da igreja (Aparelhos conectados → Conectar um aparelho):</p>

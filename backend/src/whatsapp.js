@@ -5,6 +5,7 @@ let client = null;
 let ready = false;
 let lastQr = null;
 let initializing = false;
+let lastError = null;
 
 const MIN_DELAY_MS = Number(process.env.WHATSAPP_MIN_DELAY_MS) || 2000;
 const MAX_DELAY_MS = Number(process.env.WHATSAPP_MAX_DELAY_MS) || 4000;
@@ -65,6 +66,7 @@ async function initWhatsApp() {
   initializing = true;
   ready = false;
   lastQr = null;
+  lastError = null;
 
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
@@ -91,13 +93,15 @@ async function initWhatsApp() {
   client.on('auth_failure', (msg) => {
     ready = false;
     initializing = false;
+    lastError = String(msg);
     console.log('[WhatsApp] Falha de autenticação:', msg);
   });
 
-  client.on('disconnected', () => {
+  client.on('disconnected', (reason) => {
     ready = false;
     initializing = false;
-    console.log('[WhatsApp] Desconectado.');
+    lastError = reason ? String(reason) : null;
+    console.log('[WhatsApp] Desconectado.', reason || '');
   });
 
   client.on('message', handleIncomingMessage);
@@ -106,6 +110,8 @@ async function initWhatsApp() {
     await client.initialize();
   } catch (err) {
     initializing = false;
+    lastError = err?.message || String(err);
+    console.error('[WhatsApp] Erro ao inicializar:', err);
     throw err;
   }
 }
@@ -126,6 +132,7 @@ async function reconnectWhatsApp({ resetSession } = {}) {
   ready = false;
   lastQr = null;
   initializing = false;
+  lastError = null;
 
   if (resetSession) {
     const fs = require('fs');
@@ -147,6 +154,7 @@ function getStatus() {
     ready,
     initializing,
     hasQr: !!lastQr,
+    lastError,
   };
 }
 
