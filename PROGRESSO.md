@@ -78,6 +78,12 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 09/08/2026 (parte 3 — erro "No LID for user" ao notificar)
+- Problema relatado: `Não foi possível notificar: No LID for user s (...WwCzmBwF6OP.js...)` — erro interno do próprio WhatsApp Web (não é bug do nosso código), causado pela migração do WhatsApp de IDs baseados em telefone (`@c.us`) para `LID` (Linked ID). Quando o número de destino ainda não tem o mapeamento de LID resolvido/cacheado localmente pela sessão do bot (ex.: primeiro contato com esse número), a função interna `findOrCreateLatestChat` do WhatsApp Web lança esse erro e `client.sendMessage` falha. É um bug conhecido e ainda **não corrigido** na lib `whatsapp-web.js` (issue aberta upstream).
+- `backend/src/whatsapp.js` (`sendMessageNow`): ao capturar esse erro específico (`/no lid for user/i`), agora tenta resolver o mapeamento chamando `client.getContactLidAndPhone([chatId])` (método que força o WhatsApp Web a sincronizar o LID do contato) e reenviar a mensagem uma vez antes de desistir. Se falhar de novo, retorna o motivo do erro normalmente (aparece na tela do admin).
+- Testado nesta sessão: módulo `whatsapp.js` carrega sem erro. Não foi possível reproduzir o erro real neste ambiente (sem WhatsApp conectado/sandbox), então a correção é baseada no comportamento documentado da lib — **recomendado validar em produção enviando notificação para um número com o qual o WhatsApp da igreja ainda não tenha conversado antes**.
+- Se o erro persistir mesmo após a tentativa de resolução automática, próximos passos possíveis: (a) enviar manualmente uma mensagem para esse número pela UI do WhatsApp Web/celular uma vez (isso força o WhatsApp a criar o LID), ou (b) investigar workarounds mais agressivos discutidos na issue upstream (não implementados aqui por serem não-oficiais/arriscados).
+
 ### Sessão de 09/08/2026 (parte 2 — migração do banco de dados: SQLite → PostgreSQL)
 - Motivação: usuário pediu um banco "gratuito e mais robusto" que o SQLite (arquivo único, sem concorrência real de escrita, sem replicação/backup nativo).
 - `backend/prisma/schema.prisma`: `datasource db.provider` alterado de `"sqlite"` para `"postgresql"` (mesma variável `DATABASE_URL`, agora no formato `postgresql://user:senha@host:5432/db`). Comentário sobre `role`/`status` como `String` atualizado (não é mais limitação do banco, mantido por compatibilidade com o código já escrito).

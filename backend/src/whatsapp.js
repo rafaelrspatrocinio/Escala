@@ -225,11 +225,23 @@ async function sendMessageNow(phone, text) {
     console.log(`[WhatsApp] (simulado) Para ${digits}: ${text}`);
     return { sent: false, reason: 'WhatsApp não conectado, mensagem apenas logada' };
   }
+  const chatId = `${digits}@c.us`;
   try {
-    const chatId = `${digits}@c.us`;
     await client.sendMessage(chatId, text);
     return { sent: true };
   } catch (err) {
+    const isLidError = /no lid for user/i.test(err?.message || '');
+    if (isLidError) {
+      console.warn(`[WhatsApp] Sem LID para ${digits}, tentando resolver e reenviar...`);
+      try {
+        await client.getContactLidAndPhone([chatId]);
+        await client.sendMessage(chatId, text);
+        return { sent: true };
+      } catch (retryErr) {
+        console.error('[WhatsApp] Erro ao reenviar após resolver LID:', retryErr);
+        return { sent: false, reason: retryErr.message };
+      }
+    }
     console.error('[WhatsApp] Erro ao enviar mensagem:', err);
     return { sent: false, reason: err.message };
   }
