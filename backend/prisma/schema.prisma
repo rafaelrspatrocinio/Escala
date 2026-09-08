@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -7,7 +7,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// SQLite não suporta enums nativos no Prisma; roles e status usam String
+// Roles e status usam String (compatibilidade histórica com SQLite; mantido
+// assim ao migrar para PostgreSQL para não exigir alteração no código da app)
 // com valores esperados: Role = "ADMIN" | "VOLUNTEER"; SlotStatus = "PENDING" | "CONFIRMED" | "DECLINED"
 
 model User {

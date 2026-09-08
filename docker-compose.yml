@@ -1,14 +1,36 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: escala-postgres
+    environment:
+      POSTGRES_USER: escala
+      POSTGRES_PASSWORD: escala
+      POSTGRES_DB: escala
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U escala"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   backend:
     build: ./backend
     container_name: escala-backend
     env_file:
       - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://escala:escala@postgres:5432/escala
     ports:
       - "3001:3001"
     volumes:
-      - backend_prisma:/app/prisma
       - wwebjs_auth:/app/.wwebjs_auth
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -21,5 +43,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  backend_prisma:
+  postgres_data:
   wwebjs_auth:
