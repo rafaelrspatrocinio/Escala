@@ -41,7 +41,17 @@ export default function AdminUsers() {
   }
 
   function startEdit(user) {
-    setEditing({ id: user.id, ministryIds: user.ministries.map((m) => m.id), active: user.active });
+    setError('');
+    setEditing({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      password: '',
+      role: user.role,
+      active: user.active,
+      ministryIds: user.ministries.map((m) => m.id),
+    });
   }
 
   function toggleMinistry(id) {
@@ -54,9 +64,23 @@ export default function AdminUsers() {
   }
 
   async function saveEdit() {
-    await api.put(`/users/${editing.id}`, { ministryIds: editing.ministryIds, active: editing.active });
-    setEditing(null);
-    load();
+    setError('');
+    try {
+      const payload = {
+        name: editing.name,
+        email: editing.email,
+        phone: editing.phone,
+        role: editing.role,
+        active: editing.active,
+        ministryIds: editing.ministryIds,
+      };
+      if (editing.password) payload.password = editing.password;
+      await api.put(`/users/${editing.id}`, payload);
+      setEditing(null);
+      load();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao salvar usuário');
+    }
   }
 
   async function toggleActive(user) {
@@ -130,6 +154,7 @@ export default function AdminUsers() {
           </div>
         </form>
       </div>
+      {error && editing && <div className="error">{error}</div>}
       <div className="card">
         <div className="table-wrap">
         <table>
@@ -146,13 +171,60 @@ export default function AdminUsers() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td>{u.name}</td>
                 <td>
-                  {u.email}
-                  <br />
-                  {u.phone}
+                  {editing?.id === u.id ? (
+                    <input
+                      value={editing.name}
+                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                    />
+                  ) : (
+                    u.name
+                  )}
                 </td>
-                <td>{u.role === 'ADMIN' ? 'Admin' : 'Voluntário'}</td>
+                <td>
+                  {editing?.id === u.id ? (
+                    <>
+                      <input
+                        type="email"
+                        value={editing.email}
+                        onChange={(e) => setEditing({ ...editing, email: e.target.value })}
+                      />
+                      <input
+                        style={{ marginTop: 6 }}
+                        value={editing.phone}
+                        onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
+                      />
+                      <input
+                        type="password"
+                        placeholder="Nova senha (opcional)"
+                        style={{ marginTop: 6 }}
+                        value={editing.password}
+                        onChange={(e) => setEditing({ ...editing, password: e.target.value })}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      {u.email}
+                      <br />
+                      {u.phone}
+                    </>
+                  )}
+                </td>
+                <td>
+                  {editing?.id === u.id ? (
+                    <select
+                      value={editing.role}
+                      onChange={(e) => setEditing({ ...editing, role: e.target.value })}
+                    >
+                      <option value="VOLUNTEER">Voluntário</option>
+                      <option value="ADMIN">Admin</option>
+                    </select>
+                  ) : u.role === 'ADMIN' ? (
+                    'Admin'
+                  ) : (
+                    'Voluntário'
+                  )}
+                </td>
                 <td>
                   {editing?.id === u.id ? (
                     <div>
@@ -172,7 +244,23 @@ export default function AdminUsers() {
                     u.ministries.map((m) => <span className="chip" key={m.id}>{m.name}</span>)
                   )}
                 </td>
-                <td>{u.active ? 'Ativo' : 'Inativo'}</td>
+                <td>
+                  {editing?.id === u.id ? (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}>
+                      <input
+                        type="checkbox"
+                        style={{ width: 'auto' }}
+                        checked={editing.active}
+                        onChange={(e) => setEditing({ ...editing, active: e.target.checked })}
+                      />
+                      Ativo
+                    </label>
+                  ) : u.active ? (
+                    'Ativo'
+                  ) : (
+                    'Inativo'
+                  )}
+                </td>
                 <td>
                   {editing?.id === u.id ? (
                     <>
@@ -186,7 +274,7 @@ export default function AdminUsers() {
                   ) : (
                     <>
                       <button className="btn secondary" onClick={() => startEdit(u)}>
-                        Editar ministérios
+                        Editar
                       </button>{' '}
                       <button className="btn secondary" onClick={() => toggleActive(u)}>
                         {u.active ? 'Desativar' : 'Ativar'}

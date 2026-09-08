@@ -78,30 +78,56 @@ router.get('/me', authRequired, async (req, res) => {
 });
 
 router.put('/:id', authRequired, async (req, res) => {
-  const id = Number(req.params.id);
-  if (req.user.role !== 'ADMIN' && req.user.id !== id) {
-    return res.status(403).json({ error: 'Sem permissão' });
-  }
-  const { name, phone, password, active, role, ministryIds } = req.body;
-  const data = {};
-  if (name) data.name = name;
-  if (phone) data.phone = phone;
-  if (password) data.passwordHash = await bcrypt.hash(password, 10);
-  if (typeof active === 'boolean' && req.user.role === 'ADMIN') data.active = active;
-  if (role && req.user.role === 'ADMIN') data.role = role;
-
-  const user = await prisma.user.update({ where: { id }, data });
-
-  if (Array.isArray(ministryIds) && req.user.role === 'ADMIN') {
-    await prisma.volunteerMinistry.deleteMany({ where: { userId: id } });
-    if (ministryIds.length) {
-      await prisma.volunteerMinistry.createMany({
-        data: ministryIds.map((mId) => ({ userId: id, ministryId: Number(mId) })),
-      });
+  try {
+    const id = Number(req.params.id);
+    if (req.user.role !== 'ADMIN' && req.user.id !== id) {
+      return res.status(403).json({ error: 'Sem permissão' });
     }
-  }
+    const { name, email, phone, password, active, role, ministryIds } = req.body;
+    const data = {};
+    if (name) data.name = name;
+    if (phone) data.phone = phone;
+    if (password) data.passwordHash = await bcrypt.hash(password, 10);
+    if (email && req.user.role === 'ADMIN') {
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing && existing.id !== id) return res.status(409).json({ error: 'Email já cadastrado' });
+      data.email = email;
+    }
+    if (typeof active === 'boolean' && req.user.role === 'ADMIN') data.active = active;
+    if (role && req.user.role === 'ADMIN') data.role = role;
 
-  res.json({ id: user.id, name: user.name, email: user.email, role: user.role, active: user.active });
+    const user = await prisma.user.update({
+      where: { id },
+      data,
+      include: { ministries: { include: { ministry: true } } },
+    });
+
+    if (Array.isArray(ministryIds) && req.user.role === 'ADMIN') {
+      await prisma.volunteerMinistry.deleteMany({ where: { userId: id } });
+      if (ministryIds.length) {
+        await prisma.volunteerMinistry.createMany({
+          data: ministryIds.map((mId) => ({ userId: id, ministryId: Number(mId) })),
+        });
+      }
+    }
+
+    const updated = await prisma.user.findUnique({
+      where: { id },
+      include: { ministries: { include: { ministry: true } } },
+    });
+
+    res.json({
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      phone: updated.phone,
+      role: updated.role,
+      active: updated.active,
+      ministries: updated.ministries.map((m) => m.ministry),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.delete('/:id', authRequired, adminOnly, async (req, res) => {
