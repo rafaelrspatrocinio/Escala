@@ -3,9 +3,13 @@ const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const { authRequired, adminOnly } = require('../middleware/auth');
 const { formatBrazilPhone } = require('../utils/phone');
+const { toCsv, parseCsv } = require('../utils/csv');
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+const CSV_HEADERS = ['name', 'email', 'phone', 'role', 'active', 'ministries'];
+const DEFAULT_IMPORT_PASSWORD = 'mudar123';
 
 router.get('/', authRequired, adminOnly, async (req, res) => {
   const users = await prisma.user.findMany({
@@ -56,6 +60,141 @@ router.post('/', authRequired, adminOnly, async (req, res) => {
       role: user.role,
       active: user.active,
       ministries: user.ministries.map((m) => m.ministry),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/export', authRequired, adminOnly, async (req, res) => {
+  const users = await prisma.user.findMany({
+    include: { ministries: { include: { ministry: true } } },
+    orderBy: { name: 'asc' },
+  });
+  const rows = [
+    CSV_HEADERS,
+    ...users.map((u) => [
+      u.name,
+      u.email,
+      u.phone,
+      u.role,
+      u.active ? 'sim' : 'não',
+      u.ministries.map((m) => m.ministry.name).join('|'),
+    ]),
+  ];
+  const csv = toCsv(rows);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="voluntarios.csv"');
+  res.send(`\uFEFF${csv}`);
+});
+
+router.post('/import', authRequired, adminOnly, async (req, res) => {
+  try {
+    const { csv } = req.body;
+    if (!csv || typeof csv !== 'string') {
+      return res.status(400).json({ error: 'Envie o conteúdo do CSV no campo "csv"' });
+    }
+    const rows = parseCsv(csv);
+    if (!rows.length) return res.status(400).json({ error: 'CSV vazio' });
+
+    const header = rows[0].map((h) => h.trim().toLowerCase());
+    const dataRows = rows.slice(1);
+    const colIndex = (col) => header.indexOf(col);
+    const idx = {
+      name: colIndex('name'),
+      email: colIndex('email'),
+      phone: colIndex('phone'),
+      role: colIndex('role'),
+      active: colIndex('active'),
+      ministries: colIndex('ministries'),
+    };
+    if (idx.name === -1 || idx.email === -1) {
+      return res.status(400).json({ error: 'CSV precisa ter ao menos as colunas "name" e "email"' });
+    }
+
+    const errors = [];
+    let created = 0;
+    let updated = 0;
+
+    for (let i = 0; i < dataRows.length; i += 1) {
+      const row = dataRows[i];
+      const lineNumber = i + 2;
+      try {
+        const name = row[idx.name]?.trim();
+        const email = row[idx.email]?.trim().toLowerCase();
+        if (!name || !email) {
+          errors.push(`Linha ${lineNumber}: nome e email são obrigatórios`);
+          continue;
+        }
+        const phoneRaw = idx.phone !== -1 ? row[idx.phone] : '';
+        const phone = phoneRaw ? formatBrazilPhone(phoneRaw) : undefined;
+        const roleRaw = idx.role !== -1 ? row[idx.role]?.trim().toUpperCase() : '';
+        const role = roleRaw === 'ADMIN' ? 'ADMIN' : roleRaw === 'VOLUNTEER' ? 'VOLUNTEER' : undefined;
+        const activeRaw = idx.active !== -1 ? row[idx.active]?.trim().toLowerCase() : '';
+        const active =
+          activeRaw === '' ? undefined : ['sim', 'true', '1', 'yes', 'ativo'].includes(activeRaw);
+        const ministryNames = idx.ministries !== -1
+          ? row[idx.ministries].split('|').map((m) => m.trim()).filter(Boolean)
+          : [];
+
+        const ministryIds = [];
+        for (const mName of ministryNames) {
+          const ministry = await prisma.ministry.upsert({
+            where: { name: mName },
+            update: {},
+            create: { name: mName },
+          });
+          ministryIds.push(ministry.id);
+        }
+
+        const existing = await prisma.user.findUnique({ where: { email } });
+
+        if (existing) {
+          const data = { name };
+          if (phone) data.phone = phone;
+          if (role) data.role = role;
+          if (typeof active === 'boolean') data.active = active;
+          await prisma.user.update({ where: { id: existing.id }, data });
+          if (idx.ministries !== -1) {
+            await prisma.volunteerMinistry.deleteMany({ where: { userId: existing.id } });
+            if (ministryIds.length) {
+              await prisma.volunteerMinistry.createMany({
+                data: ministryIds.map((ministryId) => ({ userId: existing.id, ministryId })),
+              });
+            }
+          }
+          updated += 1;
+        } else {
+          if (!phone) {
+            errors.push(`Linha ${lineNumber}: telefone é obrigatório para criar novo usuário (${email})`);
+            continue;
+          }
+          const passwordHash = await bcrypt.hash(DEFAULT_IMPORT_PASSWORD, 10);
+          await prisma.user.create({
+            data: {
+              name,
+              email,
+              phone,
+              passwordHash,
+              role: role || 'VOLUNTEER',
+              active: typeof active === 'boolean' ? active : true,
+              ministries: ministryIds.length
+                ? { create: ministryIds.map((ministryId) => ({ ministryId })) }
+                : undefined,
+            },
+          });
+          created += 1;
+        }
+      } catch (rowErr) {
+        errors.push(`Linha ${lineNumber}: ${rowErr.message}`);
+      }
+    }
+
+    res.json({
+      created,
+      updated,
+      errors,
+      defaultPasswordForNewUsers: created > 0 ? DEFAULT_IMPORT_PASSWORD : undefined,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

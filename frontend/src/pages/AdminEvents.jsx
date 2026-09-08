@@ -11,6 +11,8 @@ export default function AdminEvents() {
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
   const [needs, setNeeds] = useState([emptyNeed()]);
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [repeatWeeks, setRepeatWeeks] = useState(4);
   const [error, setError] = useState('');
 
   function load() {
@@ -41,10 +43,13 @@ export default function AdminEvents() {
         name,
         date,
         needs: validNeeds.map((n) => ({ ministryId: n.ministryId, slotsCount: n.slotsCount })),
+        repeatWeeks: repeatWeekly ? Number(repeatWeeks) : 1,
       });
       setName('');
       setDate('');
       setNeeds([emptyNeed()]);
+      setRepeatWeekly(false);
+      setRepeatWeeks(4);
       load();
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao criar evento');
@@ -55,6 +60,16 @@ export default function AdminEvents() {
     if (!confirm('Remover este evento e sua escala?')) return;
     await api.delete(`/events/${id}`);
     load();
+  }
+
+  async function duplicateEvent(ev) {
+    setError('');
+    try {
+      await api.post(`/events/${ev.id}/duplicate`, { daysOffset: 7 });
+      load();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao duplicar evento');
+    }
   }
 
   return (
@@ -99,6 +114,29 @@ export default function AdminEvents() {
           <button type="button" className="btn secondary" onClick={addNeedRow}>
             + Adicionar ministério
           </button>
+          <div style={{ marginTop: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="checkbox"
+                style={{ width: 'auto' }}
+                checked={repeatWeekly}
+                onChange={(e) => setRepeatWeekly(e.target.checked)}
+              />
+              Repetir semanalmente (mesmo dia/horário, toda semana)
+            </label>
+            {repeatWeekly && (
+              <div style={{ marginTop: 8, maxWidth: 220 }}>
+                <label>Quantidade de semanas</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={52}
+                  value={repeatWeeks}
+                  onChange={(e) => setRepeatWeeks(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
           {error && <div className="error">{error}</div>}
           <div>
             <button className="btn" style={{ marginTop: 16 }} type="submit">
@@ -132,6 +170,9 @@ export default function AdminEvents() {
                   ))}
                 </td>
                 <td>
+                  <button className="btn secondary" onClick={() => duplicateEvent(ev)}>
+                    Duplicar (+7 dias)
+                  </button>{' '}
                   <button className="btn danger" onClick={() => removeEvent(ev.id)}>
                     Remover
                   </button>

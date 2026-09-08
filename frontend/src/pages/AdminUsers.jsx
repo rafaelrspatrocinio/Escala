@@ -12,6 +12,9 @@ export default function AdminUsers() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm());
   const [error, setError] = useState('');
+  const [importSummary, setImportSummary] = useState(null);
+  const [importError, setImportError] = useState('');
+  const [importing, setImporting] = useState(false);
 
   function load() {
     api.get('/users').then((res) => setUsers(res.data));
@@ -95,6 +98,37 @@ export default function AdminUsers() {
     load();
   }
 
+  async function exportUsers() {
+    const res = await api.get('/users/export', { responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'voluntarios.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importUsers(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setImportError('');
+    setImportSummary(null);
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const res = await api.post('/users/import', { csv: text });
+      setImportSummary(res.data);
+      load();
+    } catch (err) {
+      setImportError(err.response?.data?.error || 'Erro ao importar CSV');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div>
       <h1>Voluntários</h1>
@@ -160,6 +194,42 @@ export default function AdminUsers() {
             </button>
           </div>
         </form>
+      </div>
+      <div className="card">
+        <h3>Exportar / Importar voluntários</h3>
+        <div className="row">
+          <button className="btn secondary" onClick={exportUsers} type="button">
+            Exportar CSV
+          </button>
+          <label className="btn secondary" style={{ margin: 0, cursor: 'pointer' }}>
+            {importing ? 'Importando...' : 'Importar CSV'}
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={importUsers}
+              disabled={importing}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--color-secondary)', marginTop: 8 }}>
+          O CSV importado usa o email para identificar cada voluntário: se já existir, atualiza os dados; se não
+          existir, cria um novo com a senha provisória <strong>mudar123</strong>. Colunas esperadas: name, email,
+          phone, role, active, ministries (múltiplos ministérios separados por "|").
+        </p>
+        {importError && <div className="error" style={{ marginTop: 8 }}>{importError}</div>}
+        {importSummary && (
+          <div className={importSummary.errors?.length ? 'error' : ''} style={{ marginTop: 8, fontSize: 13 }}>
+            Importação concluída: {importSummary.created} criado(s), {importSummary.updated} atualizado(s).
+            {importSummary.errors?.length > 0 && (
+              <ul>
+                {importSummary.errors.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
       {error && editing && <div className="error">{error}</div>}
       <div className="card">
