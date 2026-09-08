@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext.jsx';
+import { formatBrazilPhone } from '../utils/phone';
 
 export default function Register() {
   const { login } = useAuth();
@@ -25,7 +26,8 @@ export default function Register() {
     e.preventDefault();
     setError('');
     try {
-      await api.post('/auth/register', { ...form, ministryIds: selectedMinistries });
+      const phone = formatBrazilPhone(form.phone);
+      await api.post('/auth/register', { ...form, phone, ministryIds: selectedMinistries });
       await login(form.email, form.password);
       navigate('/');
     } catch (err) {
@@ -46,8 +48,14 @@ export default function Register() {
           onChange={(e) => setForm({ ...form, email: e.target.value })}
           required
         />
-        <label>Telefone (WhatsApp, com DDD e país, ex: 5511999999999)</label>
-        <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
+        <label>Telefone (WhatsApp, com DDD, ex: 21968030112)</label>
+        <input
+          value={form.phone}
+          onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '') })}
+          onBlur={(e) => setForm({ ...form, phone: formatBrazilPhone(e.target.value) })}
+          inputMode="numeric"
+          required
+        />
         <label>Senha</label>
         <input
           type="password"

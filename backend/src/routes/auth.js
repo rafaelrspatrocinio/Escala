@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
+const { formatBrazilPhone } = require('../utils/phone');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -20,7 +21,7 @@ router.post('/register', async (req, res) => {
       data: {
         name,
         email,
-        phone,
+        phone: formatBrazilPhone(phone),
         passwordHash,
         role: 'VOLUNTEER',
         ministries: ministryIds?.length

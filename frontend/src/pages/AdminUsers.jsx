@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
+import { formatBrazilPhone } from '../utils/phone';
 
 function emptyForm() {
   return { name: '', email: '', phone: '', password: '', ministryIds: [] };
@@ -32,7 +33,7 @@ export default function AdminUsers() {
     e.preventDefault();
     setError('');
     try {
-      await api.post('/users', form);
+      await api.post('/users', { ...form, phone: formatBrazilPhone(form.phone) });
       setForm(emptyForm());
       load();
     } catch (err) {
@@ -69,7 +70,7 @@ export default function AdminUsers() {
       const payload = {
         name: editing.name,
         email: editing.email,
-        phone: editing.phone,
+        phone: formatBrazilPhone(editing.phone),
         role: editing.role,
         active: editing.active,
         ministryIds: editing.ministryIds,
@@ -116,8 +117,14 @@ export default function AdminUsers() {
           </div>
           <div className="grid-2">
             <div>
-              <label>Telefone (WhatsApp, com DDD e país, ex: 5511999999999)</label>
-              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
+              <label>Telefone (WhatsApp, com DDD, ex: 21968030112)</label>
+              <input
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '') })}
+                onBlur={(e) => setForm({ ...form, phone: formatBrazilPhone(e.target.value) })}
+                inputMode="numeric"
+                required
+              />
             </div>
             <div>
               <label>Senha provisória</label>
@@ -191,7 +198,9 @@ export default function AdminUsers() {
                       />
                       <input
                         value={editing.phone}
-                        onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
+                        onChange={(e) => setEditing({ ...editing, phone: e.target.value.replace(/\D/g, '') })}
+                        onBlur={(e) => setEditing({ ...editing, phone: formatBrazilPhone(e.target.value) })}
+                        inputMode="numeric"
                       />
                       <input
                         type="password"

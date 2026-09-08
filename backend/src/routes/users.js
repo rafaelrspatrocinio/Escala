@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const { authRequired, adminOnly } = require('../middleware/auth');
+const { formatBrazilPhone } = require('../utils/phone');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -38,7 +39,7 @@ router.post('/', authRequired, adminOnly, async (req, res) => {
       data: {
         name,
         email,
-        phone,
+        phone: formatBrazilPhone(phone),
         passwordHash,
         role: 'VOLUNTEER',
         ministries: ministryIds?.length
@@ -86,7 +87,7 @@ router.put('/:id', authRequired, async (req, res) => {
     const { name, email, phone, password, active, role, ministryIds } = req.body;
     const data = {};
     if (name) data.name = name;
-    if (phone) data.phone = phone;
+    if (phone) data.phone = formatBrazilPhone(phone);
     if (password) data.passwordHash = await bcrypt.hash(password, 10);
     if (email && req.user.role === 'ADMIN') {
       const existing = await prisma.user.findUnique({ where: { email } });

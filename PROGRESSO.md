@@ -78,6 +78,20 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 09/08/2026 (parte 6 — normalização de telefone, sempre com código do Brasil)
+- Pedido: campo de telefone (cadastro de voluntário, criação de usuário pelo admin, edição de qualquer usuário) deve aceitar somente números e sempre anexar o código do país `55` na frente, mesmo que o usuário digite só DDD+número (ex.: `21968030112` → `5521968030112`).
+- Criado `frontend/src/utils/phone.js` e `backend/src/utils/phone.js` (mesma lógica em ambas as camadas): `formatBrazilPhone(value)` remove tudo que não é dígito e, se o resultado não começar com `55`, prefixa `55`; se já começar com `55`, mantém como está (evita duplicar o prefixo).
+- Frontend: nos campos de telefone de `Register.jsx`, `AdminUsers.jsx` (form de cadastro) e `AdminUsers.jsx` (edição inline), o `onChange` agora filtra em tempo real para manter só dígitos (`replace(/\D/g, '')`) e o `onBlur`/`handleSubmit`/`saveEdit` aplicam `formatBrazilPhone` antes de enviar à API — o campo visualmente mostra o número completo com `55` já ao perder o foco.
+- Backend (defesa em profundidade, caso a chamada não venha da UI): `POST /auth/register`, `POST /users` e `PUT /users/:id` agora aplicam `formatBrazilPhone(phone)` antes de salvar no banco.
+- Labels dos campos atualizados para "Telefone (WhatsApp, com DDD, ex: 21968030112)" — o usuário não precisa mais digitar o `55`.
+- Testado nesta sessão: `node -e` validando `formatBrazilPhone` com entradas puras, já com `55` e com formatação (parênteses/hífen) — todas retornam `5521968030112` corretamente; `npx vite build` do frontend concluído sem erros.
+
+### Sessão de 09/08/2026 (parte 5 — correção de layout na edição inline de usuários)
+- Bug relatado: ao clicar em "Editar" na tela de voluntários, a coluna de contato (email/telefone/senha) ficava colada com a coluna de função — layout quebrado.
+- Causa: `th, td { white-space: nowrap }` no `index.css` (regra global da tabela) forçava os `<input>` empilhados dentro da célula de edição a ficarem todos numa linha só, vazando visualmente para a célula vizinha.
+- `frontend/src/pages/AdminUsers.jsx`: células em modo de edição (nome, contato, função, ministérios, status) agora recebem `style={{ whiteSpace: 'normal', minWidth: ... }}` para sobrescrever o `nowrap` herdado, e o bloco de contato passou a usar `<div style={{ display:'flex', flexDirection:'column', gap:6 }}>` em vez de `<>...</>` com `marginTop` inline, garantindo empilhamento vertical correto dos inputs.
+- Testado nesta sessão: `npx vite build` do frontend concluído sem erros.
+
 ### Sessão de 09/08/2026 (parte 4 — admin pode editar qualquer dado de qualquer usuário, incluindo o próprio admin)
 - Pedido: antes só era possível editar ministérios e ativar/desativar voluntário na tela de admin; passou a ser necessário editar qualquer campo de qualquer usuário (nome, email, telefone, senha, função/role, status, ministérios), inclusive do próprio usuário admin logado (que já aparecia na lista, por não haver filtro em `GET /users`).
 - `backend/src/routes/users.js` (`PUT /:id`): passou a aceitar também `email` (com checagem de duplicidade igual ao cadastro, só permitida para quem é `ADMIN`), e agora retorna o objeto completo do usuário atualizado (`id/name/email/phone/role/active/ministries`) em vez de um subconjunto, para o frontend re-renderizar corretamente após salvar. Regra de permissão mantida: usuário comum só edita a si mesmo (nome/telefone/senha), e apenas admin pode alterar `email/active/role/ministryIds` de qualquer usuário — incluindo o próprio admin trocar sua própria role, email, etc.
