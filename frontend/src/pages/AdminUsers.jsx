@@ -171,7 +171,7 @@ export default function AdminUsers() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td>
+                <td style={editing?.id === u.id ? { whiteSpace: 'normal', minWidth: 160 } : undefined}>
                   {editing?.id === u.id ? (
                     <input
                       value={editing.name}
@@ -181,27 +181,25 @@ export default function AdminUsers() {
                     u.name
                   )}
                 </td>
-                <td>
+                <td style={editing?.id === u.id ? { whiteSpace: 'normal', minWidth: 220 } : undefined}>
                   {editing?.id === u.id ? (
-                    <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <input
                         type="email"
                         value={editing.email}
                         onChange={(e) => setEditing({ ...editing, email: e.target.value })}
                       />
                       <input
-                        style={{ marginTop: 6 }}
                         value={editing.phone}
                         onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
                       />
                       <input
                         type="password"
                         placeholder="Nova senha (opcional)"
-                        style={{ marginTop: 6 }}
                         value={editing.password}
                         onChange={(e) => setEditing({ ...editing, password: e.target.value })}
                       />
-                    </>
+                    </div>
                   ) : (
                     <>
                       {u.email}
@@ -210,7 +208,7 @@ export default function AdminUsers() {
                     </>
                   )}
                 </td>
-                <td>
+                <td style={editing?.id === u.id ? { whiteSpace: 'normal', minWidth: 130 } : undefined}>
                   {editing?.id === u.id ? (
                     <select
                       value={editing.role}
@@ -225,7 +223,7 @@ export default function AdminUsers() {
                     'Voluntário'
                   )}
                 </td>
-                <td>
+                <td style={editing?.id === u.id ? { whiteSpace: 'normal', minWidth: 160 } : undefined}>
                   {editing?.id === u.id ? (
                     <div>
                       {ministries.map((m) => (
@@ -244,7 +242,7 @@ export default function AdminUsers() {
                     u.ministries.map((m) => <span className="chip" key={m.id}>{m.name}</span>)
                   )}
                 </td>
-                <td>
+                <td style={editing?.id === u.id ? { whiteSpace: 'normal' } : undefined}>
                   {editing?.id === u.id ? (
                     <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}>
                       <input
