@@ -78,6 +78,13 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 09/08/2026 (parte 7 — importação da lista de voluntários do PDF)
+- Pedido: carregar `docs/Lista de voluntarios.pdf` (relatório do ADJ) considerando apenas nome e função; o resto (email/telefone/senha) o admin preenche manualmente depois.
+- Extraído o texto do PDF nesta sessão via `python3 -c "from pypdf import PdfReader..."` (não havia lib de PDF disponível em Node; `pypdf` já estava instalado no Python do sistema) — 26 voluntários únicos, com a coluna "Função" mapeando para 4 valores: `Recepção / Oferta`, `Iluminação`, `Projeção`, `Portaria` (alguns voluntários aparecem 2x no relatório por terem mais de uma função).
+- Criado (e usado com sucesso) um script standalone (Prisma) com a lista de nome+funções extraída do PDF, que garantia (`upsert`) um `Ministry` para cada função e criava/atualizava os 26 usuários com **email/telefone/senha provisórios** para o admin editar depois em Admin > Voluntários. Rodado pelo usuário via `docker compose exec backend npm run import:voluntarios` (após rebuild da imagem para pegar o script novo) — importação concluída com sucesso.
+- **Script removido do repositório após o uso** (a pedido do usuário, por conter nomes de pessoas reais) — inclusive reescrevendo o commit que o introduziu (`git commit --amend` + `push --force-with-lease`) para não deixar os nomes no histórico do git remoto. Os dados já estão apenas no banco de dados (Postgres), não mais no código-fonte.
+- Se for necessário reimportar ou ajustar algo no futuro, repetir o processo manualmente pela tela Admin > Voluntários (cadastro individual) — não recriar o script com nomes reais hardcoded no repositório.
+
 ### Sessão de 09/08/2026 (parte 6 — normalização de telefone, sempre com código do Brasil)
 - Pedido: campo de telefone (cadastro de voluntário, criação de usuário pelo admin, edição de qualquer usuário) deve aceitar somente números e sempre anexar o código do país `55` na frente, mesmo que o usuário digite só DDD+número (ex.: `21968030112` → `5521968030112`).
 - Criado `frontend/src/utils/phone.js` e `backend/src/utils/phone.js` (mesma lógica em ambas as camadas): `formatBrazilPhone(value)` remove tudo que não é dígito e, se o resultado não começar com `55`, prefixa `55`; se já começar com `55`, mantém como está (evita duplicar o prefixo).
