@@ -44,6 +44,23 @@ function findExecutablePath() {
   return candidatePaths.find((p) => fs.existsSync(p)) || null;
 }
 
+function clearStaleSingletonLocks(dataPath) {
+  const fs = require('fs');
+  const path = require('path');
+  const profileDir = path.join(dataPath, 'session');
+  const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+  for (const name of lockFiles) {
+    const filePath = path.join(profileDir, name);
+    try {
+      fs.lstatSync(filePath);
+      fs.rmSync(filePath, { force: true });
+      console.log(`[WhatsApp] Lock obsoleto removido: ${filePath}`);
+    } catch (err) {
+      if (err.code !== 'ENOENT') console.error(`[WhatsApp] Erro ao remover lock ${filePath}:`, err.message);
+    }
+  }
+}
+
 async function initWhatsApp() {
   if (process.env.WHATSAPP_ENABLED !== 'true') {
     console.log('[WhatsApp] Integração desativada (WHATSAPP_ENABLED != true).');
@@ -62,6 +79,8 @@ async function initWhatsApp() {
     );
     return;
   }
+
+  clearStaleSingletonLocks('./.wwebjs_auth');
 
   initializing = true;
   ready = false;
