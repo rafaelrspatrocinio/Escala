@@ -10,6 +10,7 @@ const ministryRoutes = require('./routes/ministries');
 const eventRoutes = require('./routes/events');
 const unavailabilityRoutes = require('./routes/unavailability');
 const scheduleRoutes = require('./routes/schedule');
+const whatsappRoutes = require('./routes/whatsapp');
 
 const app = express();
 app.use(cors());
@@ -22,6 +23,7 @@ app.use('/api/ministries', ministryRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/unavailability', unavailabilityRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);

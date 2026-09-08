@@ -78,6 +78,16 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 09/08/2026 (conexão do WhatsApp via painel admin)
+- Problema relatado: numa máquina nova, ao tentar notificar, aparecia "WhatsApp não conectado" — causa raiz era o backend nem estar em execução; ao subir, a sessão salva (`.wwebjs_auth`) falhou por `auth timeout` (rede corporativa com proxy MITM intercepta TLS de `web.whatsapp.com`), mesmo problema documentado na sessão de dockerização.
+- Antes disso só era possível conectar escaneando o QR code impresso no **terminal** do backend (`qrcode-terminal`), o que é inviável em outra máquina/servidor sem acesso ao console. Implementada uma forma alternativa de conectar pelo próprio painel, logado como admin:
+  - `backend/src/whatsapp.js`: guarda o último QR recebido (`lastQr`) e um flag `initializing`; extraído `findExecutablePath()`; adicionadas `getStatus()` (enabled/executableFound/ready/initializing/hasQr), `getQrDataUrl()` (usa a nova dependência `qrcode` para gerar um PNG em base64 a partir do QR) e `reconnectWhatsApp({ resetSession })` (destrói o client atual, opcionalmente apaga `.wwebjs_auth` para forçar novo QR, e chama `initWhatsApp()` de novo). Continua também logando o QR no terminal como antes.
+  - `backend/package.json`: adicionada dependência `qrcode` (distinta de `qrcode-terminal`, gera data URL de imagem em vez de ASCII).
+  - Nova rota `backend/src/routes/whatsapp.js` (protegida por `authRequired` + `adminOnly`): `GET /api/whatsapp/status`, `GET /api/whatsapp/qr` (retorna `{ qr: <dataURL ou null> }`), `POST /api/whatsapp/reconnect` (`{ resetSession: boolean }`). Registrada em `backend/src/index.js`.
+  - Nova página `frontend/src/pages/AdminWhatsApp.jsx`: faz polling de `/whatsapp/status` a cada 4s, mostra a imagem do QR code quando disponível (via `<img src={dataURL}>`), estado "conectado"/"desconectado"/"conectando", e dois botões — **Reconectar** (tenta retomar a sessão salva) e **Gerar novo QR code (limpar sessão)** (apaga `.wwebjs_auth` e força escanear de novo). Rota `/admin/whatsapp` adicionada em `frontend/src/App.jsx` e link "WhatsApp" adicionado em `frontend/src/components/Navbar.jsx` (menu admin).
+- Testado nesta sessão: módulos carregam sem erro; backend subiu e respondeu `POST /api/auth/login` (admin@admin/admin) e `GET /api/whatsapp/status` (`{"enabled":true,"executableFound":true,"ready":false,"initializing":true,"hasQr":false}`) corretamente via chamadas HTTP diretas.
+- **Importante**: isso resolve a *forma* de conectar (agora dá para escanear o QR direto do navegador, sem acesso ao terminal do servidor), mas **não resolve** o `auth timeout`/`ERR_CERT_AUTHORITY_INVALID` causado pela rede com proxy MITM — isso continua exigindo testar fora dessa rede corporativa (ou configurar exceção de proxy para `web.whatsapp.com`/`*.whatsapp.net`).
+
 ### Sessão de 26/08/2026 (parte 4 — lembretes automáticos via WhatsApp)
 - Implementado agendamento automático de notificações para os voluntários:
   - **24 horas antes do evento**: job de cron (`*/15 * * * *`, verifica a cada 15 min) que envia lembrete quando faltam ≤24h para o evento.

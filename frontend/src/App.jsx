@@ -7,6 +7,7 @@ import AdminMinistries from './pages/AdminMinistries.jsx';
 import AdminUsers from './pages/AdminUsers.jsx';
 import AdminEvents from './pages/AdminEvents.jsx';
 import AdminSchedule from './pages/AdminSchedule.jsx';
+import AdminWhatsApp from './pages/AdminWhatsApp.jsx';
 import VolunteerHome from './pages/VolunteerHome.jsx';
 import VolunteerUnavailability from './pages/VolunteerUnavailability.jsx';
 
@@ -77,6 +78,14 @@ export default function App() {
             element={
               <ProtectedRoute adminOnly>
                 <AdminSchedule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/whatsapp"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminWhatsApp />
               </ProtectedRoute>
             }
           />

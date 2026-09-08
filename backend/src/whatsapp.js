@@ -3,6 +3,8 @@ const prisma = new PrismaClient();
 
 let client = null;
 let ready = false;
+let lastQr = null;
+let initializing = false;
 
 const MIN_DELAY_MS = Number(process.env.WHATSAPP_MIN_DELAY_MS) || 2000;
 const MAX_DELAY_MS = Number(process.env.WHATSAPP_MAX_DELAY_MS) || 4000;
@@ -26,16 +28,8 @@ function stripAccents(str) {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-async function initWhatsApp() {
-  if (process.env.WHATSAPP_ENABLED !== 'true') {
-    console.log('[WhatsApp] Integração desativada (WHATSAPP_ENABLED != true).');
-    return;
-  }
-
-  const { Client, LocalAuth } = require('whatsapp-web.js');
-  const qrcode = require('qrcode-terminal');
+function findExecutablePath() {
   const fs = require('fs');
-
   const candidatePaths = [
     process.env.CHROME_PATH,
     'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -46,7 +40,20 @@ async function initWhatsApp() {
     '/usr/bin/chromium-browser',
     '/usr/bin/chromium',
   ].filter(Boolean);
-  const executablePath = candidatePaths.find((p) => fs.existsSync(p));
+  return candidatePaths.find((p) => fs.existsSync(p)) || null;
+}
+
+async function initWhatsApp() {
+  if (process.env.WHATSAPP_ENABLED !== 'true') {
+    console.log('[WhatsApp] Integração desativada (WHATSAPP_ENABLED != true).');
+    return;
+  }
+  if (initializing) return;
+
+  const { Client, LocalAuth } = require('whatsapp-web.js');
+  const qrcodeTerminal = require('qrcode-terminal');
+
+  const executablePath = findExecutablePath();
 
   if (!executablePath) {
     console.warn(
@@ -54,6 +61,10 @@ async function initWhatsApp() {
     );
     return;
   }
+
+  initializing = true;
+  ready = false;
+  lastQr = null;
 
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
@@ -65,23 +76,84 @@ async function initWhatsApp() {
   });
 
   client.on('qr', (qr) => {
-    console.log('[WhatsApp] Escaneie o QR code abaixo com o WhatsApp do número da igreja:');
-    qrcode.generate(qr, { small: true });
+    lastQr = qr;
+    console.log('[WhatsApp] Escaneie o QR code abaixo com o WhatsApp do número da igreja (ou acesse Admin > WhatsApp no sistema):');
+    qrcodeTerminal.generate(qr, { small: true });
   });
 
   client.on('ready', () => {
     ready = true;
+    initializing = false;
+    lastQr = null;
     console.log('[WhatsApp] Conectado e pronto para enviar mensagens.');
+  });
+
+  client.on('auth_failure', (msg) => {
+    ready = false;
+    initializing = false;
+    console.log('[WhatsApp] Falha de autenticação:', msg);
   });
 
   client.on('disconnected', () => {
     ready = false;
+    initializing = false;
     console.log('[WhatsApp] Desconectado.');
   });
 
   client.on('message', handleIncomingMessage);
 
-  await client.initialize();
+  try {
+    await client.initialize();
+  } catch (err) {
+    initializing = false;
+    throw err;
+  }
+}
+
+async function reconnectWhatsApp({ resetSession } = {}) {
+  if (process.env.WHATSAPP_ENABLED !== 'true') {
+    return { ok: false, reason: 'Integração desativada (WHATSAPP_ENABLED != true)' };
+  }
+
+  if (client) {
+    try {
+      await client.destroy();
+    } catch (err) {
+      console.error('[WhatsApp] Erro ao destruir client anterior:', err);
+    }
+    client = null;
+  }
+  ready = false;
+  lastQr = null;
+  initializing = false;
+
+  if (resetSession) {
+    const fs = require('fs');
+    try {
+      fs.rmSync('./.wwebjs_auth', { recursive: true, force: true });
+    } catch (err) {
+      console.error('[WhatsApp] Erro ao limpar sessão salva:', err);
+    }
+  }
+
+  initWhatsApp().catch((err) => console.error('[WhatsApp] Falha ao reconectar:', err));
+  return { ok: true };
+}
+
+function getStatus() {
+  return {
+    enabled: process.env.WHATSAPP_ENABLED === 'true',
+    executableFound: !!findExecutablePath(),
+    ready,
+    initializing,
+    hasQr: !!lastQr,
+  };
+}
+
+async function getQrDataUrl() {
+  if (!lastQr) return null;
+  const QRCode = require('qrcode');
+  return QRCode.toDataURL(lastQr);
 }
 
 async function handleIncomingMessage(message) {
@@ -146,4 +218,4 @@ function sendMessage(phone, text) {
   return task;
 }
 
-module.exports = { initWhatsApp, sendMessage };
+module.exports = { initWhatsApp, sendMessage, reconnectWhatsApp, getStatus, getQrDataUrl };

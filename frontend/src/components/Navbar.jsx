@@ -13,6 +13,7 @@ export default function Navbar() {
         <NavLink to="/admin/eventos" onClick={() => setOpen(false)}>Eventos</NavLink>
         <NavLink to="/admin/voluntarios" onClick={() => setOpen(false)}>Voluntários</NavLink>
         <NavLink to="/admin/ministerios" onClick={() => setOpen(false)}>Ministérios</NavLink>
+        <NavLink to="/admin/whatsapp" onClick={() => setOpen(false)}>WhatsApp</NavLink>
       </>
     ) : (
       <>
