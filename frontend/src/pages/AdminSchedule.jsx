@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import html2canvas from 'html2canvas';
 import api from '../api/client';
 
 const statusLabel = { PENDING: 'Pendente', CONFIRMED: 'Confirmado', DECLINED: 'Recusado' };
@@ -9,6 +10,8 @@ export default function AdminSchedule() {
   const [slots, setSlots] = useState([]);
   const [users, setUsers] = useState([]);
   const [message, setMessage] = useState('');
+  const [exportingId, setExportingId] = useState(null);
+  const exportRefs = useRef({});
 
   function load() {
     api.get('/events').then((res) => setEvents(res.data));
@@ -64,6 +67,26 @@ export default function AdminSchedule() {
     }
   }
 
+  async function exportImage(ev) {
+    const node = exportRefs.current[ev.id];
+    if (!node) return;
+    setExportingId(ev.id);
+    try {
+      const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff' });
+      const dataUrl = canvas.toDataURL('image/png');
+      const dateStr = new Date(ev.date).toLocaleDateString('pt-BR').replace(/\//g, '-');
+      const safeName = ev.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `escala-${safeName}-${dateStr}.png`;
+      link.click();
+    } catch (err) {
+      setMessage('Erro ao gerar imagem da escala.');
+    } finally {
+      setExportingId(null);
+    }
+  }
+
   return (
     <div>
       <h1>Escala</h1>
@@ -85,9 +108,18 @@ export default function AdminSchedule() {
                 <h3>{ev.name}</h3>
                 <p>{new Date(ev.date).toLocaleString('pt-BR')}</p>
               </div>
-              <button className="btn secondary" onClick={() => generateForEvent(ev.id)}>
-                Gerar/completar escala deste evento
-              </button>
+              <div className="row">
+                <button className="btn secondary" onClick={() => generateForEvent(ev.id)}>
+                  Gerar/completar escala deste evento
+                </button>
+                <button
+                  className="btn secondary"
+                  disabled={eventSlots.length === 0 || exportingId === ev.id}
+                  onClick={() => exportImage(ev)}
+                >
+                  {exportingId === ev.id ? 'Gerando imagem...' : 'Exportar imagem'}
+                </button>
+              </div>
             </div>
             <div className="table-wrap">
             <table>
@@ -156,6 +188,58 @@ export default function AdminSchedule() {
                 })}
               </tbody>
             </table>
+            </div>
+
+            <div
+              ref={(node) => {
+                exportRefs.current[ev.id] = node;
+              }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: '-9999px',
+                width: 480,
+                background: '#ffffff',
+                padding: 24,
+                fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+                color: '#1f2933',
+              }}
+            >
+              <div style={{ background: '#1a1a1a', color: '#ffffff', padding: '14px 18px', borderRadius: 10, marginBottom: 16 }}>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{ev.name}</div>
+                <div style={{ fontSize: 13, opacity: 0.85 }}>{new Date(ev.date).toLocaleString('pt-BR')}</div>
+              </div>
+              {eventSlots.map((slot) => (
+                <div
+                  key={slot.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '10px 0',
+                    borderBottom: '1px solid #e4e7eb',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>{slot.ministry.name}</div>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{slot.user?.name || '—'}</div>
+                  </div>
+                  <span
+                    style={{
+                      padding: '3px 12px',
+                      borderRadius: 12,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background:
+                        slot.status === 'CONFIRMED' ? '#d1fae5' : slot.status === 'DECLINED' ? '#fee2e2' : '#fef3c7',
+                      color:
+                        slot.status === 'CONFIRMED' ? '#065f46' : slot.status === 'DECLINED' ? '#991b1b' : '#92400e',
+                    }}
+                  >
+                    {statusLabel[slot.status]}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         );

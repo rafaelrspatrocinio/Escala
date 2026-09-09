@@ -78,6 +78,17 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 09/09/2026 (parte 9 — exportar escala do dia como imagem)
+- Pedido: poder exportar a escala de um evento/dia em imagem (para compartilhar, ex. no grupo do WhatsApp).
+- `frontend/package.json`: adicionada dependência `html2canvas` (renderiza um nó DOM em `<canvas>`/PNG no navegador, sem precisar de backend).
+- `frontend/src/pages/AdminSchedule.jsx`:
+  - Novo botão "Exportar imagem" em cada card de evento (ao lado de "Gerar/completar escala"), desabilitado se o evento ainda não tem escala gerada.
+  - Cada evento tem um `div` "template" oculto (posicionado fora da tela via `position: fixed; left: -9999px`, não `display:none`, para o html2canvas conseguir renderizar) com um layout limpo só para exportação: cabeçalho preto com nome do evento + data, e uma lista ministério → voluntário → badge de status (sem `<select>`/botões de ação, que não fariam sentido numa imagem estática).
+  - `exportImage(ev)` usa `html2canvas(node, { scale: 2 })` para gerar um PNG em alta resolução, e baixa automaticamente via link temporário com nome `escala-<nome-do-evento>-<data>.png`.
+- Testado nesta sessão: `npx vite build` do frontend concluído sem erros.
+- **Rebuild e deploy feitos nesta sessão** (via `docker build`/`docker run` manuais, mesma limitação de `docker compose` do sandbox já documentada): `escala-backend` e `escala-frontend` rebuildados com o código novo (CSV import/export, duplicar evento, exportar imagem da escala); `escala-postgres` recriado (estava sem container ativo) com volume `escala_postgres_data`, migration `20260908000000_init_postgres` aplicada automaticamente no start do backend. Containers `escala-postgres`/`escala-backend`/`escala-frontend` rodando na rede `escala-net` (aliases `postgres`/`backend`/`frontend`), portas 5432/3001/8080. `GET http://localhost:3001/api/health` e `GET http://localhost:8080/api/health` → `200 {"ok":true}`. WhatsApp continua falhando por `ERR_CERT_AUTHORITY_INVALID` (proxy MITM da rede, não bloqueia o resto da app).
+- **Pendente para o usuário**: testar o botão "Exportar imagem" na tela Admin > Escala com um evento que já tenha voluntários atribuídos; em terminal normal (fora deste sandbox) `docker compose up -d --build` deve funcionar direto e substituir estes containers manuais sem problema (mesmos nomes/rede/volumes).
+
 ### Sessão de 09/08/2026 (parte 8 — exportar/importar voluntários via CSV + duplicar/repetir eventos semanais)
 - Pedido: (1) permitir exportar e importar a lista de voluntários (reaproveitando o aprendizado da importação pontual do PDF, mas de forma reutilizável e sem nomes reais hardcoded no código); (2) evitar recriar manualmente o evento do culto de domingo toda semana — poder duplicar/repetir eventos.
 - **Exportar/Importar voluntários (CSV)**:
