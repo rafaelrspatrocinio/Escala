@@ -5,6 +5,12 @@ function emptyNeed() {
   return { ministryId: '', slotsCount: 1 };
 }
 
+function toLocalDatetimeInput(dateStr) {
+  const d = new Date(dateStr);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+
 export default function AdminEvents() {
   const [events, setEvents] = useState([]);
   const [ministries, setMinistries] = useState([]);
@@ -14,6 +20,9 @@ export default function AdminEvents() {
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [repeatWeeks, setRepeatWeeks] = useState(4);
   const [error, setError] = useState('');
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [editError, setEditError] = useState('');
+  const [savingEvent, setSavingEvent] = useState(false);
 
   function load() {
     api.get('/events').then((res) => setEvents(res.data));
@@ -69,6 +78,52 @@ export default function AdminEvents() {
       load();
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao duplicar evento');
+    }
+  }
+
+  function startEditEvent(ev) {
+    setEditError('');
+    setEditingEvent({
+      id: ev.id,
+      name: ev.name,
+      date: toLocalDatetimeInput(ev.date),
+      needs: ev.needs.length
+        ? ev.needs.map((n) => ({ ministryId: String(n.ministryId), slotsCount: n.slotsCount }))
+        : [emptyNeed()],
+    });
+  }
+
+  function updateEditNeed(index, field, value) {
+    setEditingEvent((prev) => ({
+      ...prev,
+      needs: prev.needs.map((n, i) => (i === index ? { ...n, [field]: value } : n)),
+    }));
+  }
+
+  function addEditNeedRow() {
+    setEditingEvent((prev) => ({ ...prev, needs: [...prev.needs, emptyNeed()] }));
+  }
+
+  function removeEditNeedRow(index) {
+    setEditingEvent((prev) => ({ ...prev, needs: prev.needs.filter((_, i) => i !== index) }));
+  }
+
+  async function saveEventEdit() {
+    setEditError('');
+    setSavingEvent(true);
+    try {
+      const validNeeds = editingEvent.needs.filter((n) => n.ministryId);
+      await api.put(`/events/${editingEvent.id}`, {
+        name: editingEvent.name,
+        date: editingEvent.date,
+        needs: validNeeds.map((n) => ({ ministryId: n.ministryId, slotsCount: n.slotsCount })),
+      });
+      setEditingEvent(null);
+      load();
+    } catch (err) {
+      setEditError(err.response?.data?.error || 'Erro ao salvar evento');
+    } finally {
+      setSavingEvent(false);
     }
   }
 
@@ -170,6 +225,9 @@ export default function AdminEvents() {
                   ))}
                 </td>
                 <td>
+                  <button className="btn secondary" onClick={() => startEditEvent(ev)}>
+                    Editar
+                  </button>{' '}
                   <button className="btn secondary" onClick={() => duplicateEvent(ev)}>
                     Duplicar (+7 dias)
                   </button>{' '}
@@ -183,6 +241,67 @@ export default function AdminEvents() {
         </table>
         </div>
       </div>
+      {editingEvent && (
+        <div className="modal-overlay" onClick={() => setEditingEvent(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <h3>Editar evento</h3>
+            <div className="grid-2">
+              <div>
+                <label>Nome do evento</label>
+                <input
+                  value={editingEvent.name}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label>Data e hora</label>
+                <input
+                  type="datetime-local"
+                  value={editingEvent.date}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, date: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <label>Necessidades por ministério</label>
+            {editingEvent.needs.map((n, i) => (
+              <div className="row" key={i} style={{ marginBottom: 8 }}>
+                <select value={n.ministryId} onChange={(e) => updateEditNeed(i, 'ministryId', e.target.value)}>
+                  <option value="">Selecione o ministério</option>
+                  {ministries.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min={1}
+                  style={{ width: 80 }}
+                  value={n.slotsCount}
+                  onChange={(e) => updateEditNeed(i, 'slotsCount', e.target.value)}
+                />
+                <button type="button" className="btn secondary" onClick={() => removeEditNeedRow(i)}>
+                  Remover
+                </button>
+              </div>
+            ))}
+            <button type="button" className="btn secondary" onClick={addEditNeedRow}>
+              + Adicionar ministério
+            </button>
+            {editError && <div className="error" style={{ marginTop: 8 }}>{editError}</div>}
+            <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn secondary" onClick={() => setEditingEvent(null)}>
+                Cancelar
+              </button>
+              <button className="btn" onClick={saveEventEdit} disabled={savingEvent}>
+                {savingEvent ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

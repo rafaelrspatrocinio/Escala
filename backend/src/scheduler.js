@@ -1,12 +1,15 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-function sameDay(a, b) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+function dateOnly(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function isWithinUnavailability(unavailability, eventDate) {
+  const start = dateOnly(new Date(unavailability.date));
+  const end = unavailability.endDate ? dateOnly(new Date(unavailability.endDate)) : start;
+  const day = dateOnly(new Date(eventDate));
+  return day >= start && day <= end;
 }
 
 async function generateScheduleForEvent(eventId) {
@@ -31,10 +34,13 @@ async function generateScheduleForEvent(eventId) {
       include: { user: { include: { unavailability: true, scheduleSlots: true } } },
     });
 
+    const eventWeekday = new Date(event.date).getDay();
+
     const candidates = volunteerLinks
       .map((link) => link.user)
       .filter((user) => !alreadyAssignedUserIds.has(user.id))
-      .filter((user) => !user.unavailability.some((u) => sameDay(new Date(u.date), new Date(event.date))))
+      .filter((user) => !user.unavailability.some((u) => isWithinUnavailability(u, event.date)))
+      .filter((user) => (user.availableWeekdays ?? []).includes(eventWeekday))
       .map((user) => {
         const confirmedOrPast = user.scheduleSlots.filter((s) => s.status !== 'DECLINED');
         const timesServed = confirmedOrPast.length;

@@ -1,10 +1,20 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import api from '../api/client';
 import { formatBrazilPhone } from '../utils/phone';
 
 function emptyForm() {
   return { name: '', email: '', phone: '', password: '', ministryIds: [] };
 }
+
+const WEEKDAYS = [
+  { value: 0, label: 'Domingo' },
+  { value: 1, label: 'Segunda' },
+  { value: 2, label: 'Terça' },
+  { value: 3, label: 'Quarta' },
+  { value: 4, label: 'Quinta' },
+  { value: 5, label: 'Sexta' },
+  { value: 6, label: 'Sábado' },
+];
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -15,6 +25,14 @@ export default function AdminUsers() {
   const [importSummary, setImportSummary] = useState(null);
   const [importError, setImportError] = useState('');
   const [importing, setImporting] = useState(false);
+  const [availabilityModal, setAvailabilityModal] = useState(null);
+  const [availabilityError, setAvailabilityError] = useState('');
+  const [savingAvailability, setSavingAvailability] = useState(false);
+  const [blockDates, setBlockDates] = useState([]);
+  const [newBlockDate, setNewBlockDate] = useState('');
+  const [newBlockEndDate, setNewBlockEndDate] = useState('');
+  const [newBlockReason, setNewBlockReason] = useState('');
+  const [savingBlockDate, setSavingBlockDate] = useState(false);
 
   function load() {
     api.get('/users').then((res) => setUsers(res.data));
@@ -96,6 +114,69 @@ export default function AdminUsers() {
     if (!confirm(`Remover ${user.name}?`)) return;
     await api.delete(`/users/${user.id}`);
     load();
+  }
+
+  function openAvailability(user) {
+    setAvailabilityError('');
+    setNewBlockDate('');
+    setNewBlockEndDate('');
+    setNewBlockReason('');
+    setAvailabilityModal({
+      userId: user.id,
+      name: user.name,
+      days: user.availableWeekdays?.length ? [...user.availableWeekdays] : [0, 1, 2, 3, 4, 5, 6],
+    });
+    api.get('/unavailability', { params: { userId: user.id } }).then((res) => setBlockDates(res.data));
+  }
+
+  function toggleAvailabilityDay(day) {
+    setAvailabilityModal((prev) => ({
+      ...prev,
+      days: prev.days.includes(day) ? prev.days.filter((d) => d !== day) : [...prev.days, day],
+    }));
+  }
+
+  async function saveAvailability() {
+    setAvailabilityError('');
+    setSavingAvailability(true);
+    try {
+      await api.put(`/users/${availabilityModal.userId}`, { availableWeekdays: availabilityModal.days });
+      setAvailabilityModal(null);
+      load();
+    } catch (err) {
+      setAvailabilityError(err.response?.data?.error || 'Erro ao salvar disponibilidade');
+    } finally {
+      setSavingAvailability(false);
+    }
+  }
+
+  async function addBlockDate(e) {
+    e.preventDefault();
+    if (!newBlockDate) return;
+    setAvailabilityError('');
+    setSavingBlockDate(true);
+    try {
+      await api.post('/unavailability', {
+        userId: availabilityModal.userId,
+        date: newBlockDate,
+        endDate: newBlockEndDate || undefined,
+        reason: newBlockReason,
+      });
+      setNewBlockDate('');
+      setNewBlockEndDate('');
+      setNewBlockReason('');
+      const res = await api.get('/unavailability', { params: { userId: availabilityModal.userId } });
+      setBlockDates(res.data);
+    } catch (err) {
+      setAvailabilityError(err.response?.data?.error || 'Erro ao bloquear data');
+    } finally {
+      setSavingBlockDate(false);
+    }
+  }
+
+  async function removeBlockDate(id) {
+    await api.delete(`/unavailability/${id}`);
+    setBlockDates((prev) => prev.filter((b) => b.id !== id));
   }
 
   async function exportUsers() {
@@ -238,8 +319,6 @@ export default function AdminUsers() {
           <thead>
             <tr>
               <th>Nome</th>
-              <th>Contato</th>
-              <th>Função</th>
               <th>Ministérios</th>
               <th>Status</th>
               <th></th>
@@ -247,127 +326,217 @@ export default function AdminUsers() {
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id}>
-                <td style={editing?.id === u.id ? { whiteSpace: 'normal', minWidth: 160 } : undefined}>
-                  {editing?.id === u.id ? (
-                    <input
-                      value={editing.name}
-                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                    />
-                  ) : (
-                    u.name
-                  )}
-                </td>
-                <td style={editing?.id === u.id ? { whiteSpace: 'normal', minWidth: 220 } : undefined}>
-                  {editing?.id === u.id ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <Fragment key={u.id}>
+                <tr>
+                  <td style={editing?.id === u.id ? { whiteSpace: 'normal', minWidth: 160 } : undefined}>
+                    {editing?.id === u.id ? (
                       <input
-                        type="email"
-                        value={editing.email}
-                        onChange={(e) => setEditing({ ...editing, email: e.target.value })}
+                        value={editing.name}
+                        onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                       />
-                      <input
-                        value={editing.phone}
-                        onChange={(e) => setEditing({ ...editing, phone: e.target.value.replace(/\D/g, '') })}
-                        onBlur={(e) => setEditing({ ...editing, phone: formatBrazilPhone(e.target.value) })}
-                        inputMode="numeric"
-                      />
-                      <input
-                        type="password"
-                        placeholder="Nova senha (opcional)"
-                        value={editing.password}
-                        onChange={(e) => setEditing({ ...editing, password: e.target.value })}
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      {u.email}
-                      <br />
-                      {u.phone}
-                    </>
-                  )}
-                </td>
-                <td style={editing?.id === u.id ? { whiteSpace: 'normal', minWidth: 130 } : undefined}>
-                  {editing?.id === u.id ? (
-                    <select
-                      value={editing.role}
-                      onChange={(e) => setEditing({ ...editing, role: e.target.value })}
-                    >
-                      <option value="VOLUNTEER">Voluntário</option>
-                      <option value="ADMIN">Admin</option>
-                    </select>
-                  ) : u.role === 'ADMIN' ? (
-                    'Admin'
-                  ) : (
-                    'Voluntário'
-                  )}
-                </td>
-                <td style={editing?.id === u.id ? { whiteSpace: 'normal', minWidth: 160 } : undefined}>
-                  {editing?.id === u.id ? (
-                    <div>
-                      {ministries.map((m) => (
-                        <label key={m.id} style={{ display: 'block', fontWeight: 400 }}>
+                    ) : (
+                      u.name
+                    )}
+                  </td>
+                  <td style={editing?.id === u.id ? { whiteSpace: 'normal', minWidth: 160 } : undefined}>
+                    {editing?.id === u.id ? (
+                      <div>
+                        {ministries.map((m) => (
+                          <label key={m.id} style={{ display: 'block', fontWeight: 400 }}>
+                            <input
+                              type="checkbox"
+                              style={{ width: 'auto', marginRight: 6 }}
+                              checked={editing.ministryIds.includes(m.id)}
+                              onChange={() => toggleMinistry(m.id)}
+                            />
+                            {m.name}
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      u.ministries.map((m) => <span className="chip" key={m.id}>{m.name}</span>)
+                    )}
+                  </td>
+                  <td style={editing?.id === u.id ? { whiteSpace: 'normal' } : undefined}>
+                    {editing?.id === u.id ? (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}>
+                        <input
+                          type="checkbox"
+                          style={{ width: 'auto' }}
+                          checked={editing.active}
+                          onChange={(e) => setEditing({ ...editing, active: e.target.checked })}
+                        />
+                        Ativo
+                      </label>
+                    ) : u.active ? (
+                      'Ativo'
+                    ) : (
+                      'Inativo'
+                    )}
+                  </td>
+                  <td>
+                    {editing?.id === u.id ? (
+                      <>
+                        <button className="btn" onClick={saveEdit}>
+                          Salvar
+                        </button>{' '}
+                        <button className="btn secondary" onClick={() => setEditing(null)}>
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="btn secondary" onClick={() => startEdit(u)}>
+                          Editar
+                        </button>{' '}
+                        <button className="btn secondary" onClick={() => openAvailability(u)}>
+                          Disponibilidade
+                        </button>{' '}
+                        <button className="btn secondary" onClick={() => toggleActive(u)}>
+                          {u.active ? 'Desativar' : 'Ativar'}
+                        </button>{' '}
+                        <button className="btn danger" onClick={() => removeUser(u)}>
+                          Remover
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+                {editing?.id === u.id && (
+                  <tr>
+                    <td colSpan={4} style={{ whiteSpace: 'normal', background: 'var(--color-bg)' }}>
+                      <div className="grid-2">
+                        <div>
+                          <label>Email</label>
                           <input
-                            type="checkbox"
-                            style={{ width: 'auto', marginRight: 6 }}
-                            checked={editing.ministryIds.includes(m.id)}
-                            onChange={() => toggleMinistry(m.id)}
+                            type="email"
+                            value={editing.email}
+                            onChange={(e) => setEditing({ ...editing, email: e.target.value })}
                           />
-                          {m.name}
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    u.ministries.map((m) => <span className="chip" key={m.id}>{m.name}</span>)
-                  )}
-                </td>
-                <td style={editing?.id === u.id ? { whiteSpace: 'normal' } : undefined}>
-                  {editing?.id === u.id ? (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}>
-                      <input
-                        type="checkbox"
-                        style={{ width: 'auto' }}
-                        checked={editing.active}
-                        onChange={(e) => setEditing({ ...editing, active: e.target.checked })}
-                      />
-                      Ativo
-                    </label>
-                  ) : u.active ? (
-                    'Ativo'
-                  ) : (
-                    'Inativo'
-                  )}
-                </td>
-                <td>
-                  {editing?.id === u.id ? (
-                    <>
-                      <button className="btn" onClick={saveEdit}>
-                        Salvar
-                      </button>{' '}
-                      <button className="btn secondary" onClick={() => setEditing(null)}>
-                        Cancelar
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button className="btn secondary" onClick={() => startEdit(u)}>
-                        Editar
-                      </button>{' '}
-                      <button className="btn secondary" onClick={() => toggleActive(u)}>
-                        {u.active ? 'Desativar' : 'Ativar'}
-                      </button>{' '}
-                      <button className="btn danger" onClick={() => removeUser(u)}>
-                        Remover
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
+                        </div>
+                        <div>
+                          <label>Telefone</label>
+                          <input
+                            value={editing.phone}
+                            onChange={(e) => setEditing({ ...editing, phone: e.target.value.replace(/\D/g, '') })}
+                            onBlur={(e) => setEditing({ ...editing, phone: formatBrazilPhone(e.target.value) })}
+                            inputMode="numeric"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid-2">
+                        <div>
+                          <label>Nova senha (opcional)</label>
+                          <input
+                            type="password"
+                            value={editing.password}
+                            onChange={(e) => setEditing({ ...editing, password: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label>Função</label>
+                          <select
+                            value={editing.role}
+                            onChange={(e) => setEditing({ ...editing, role: e.target.value })}
+                          >
+                            <option value="VOLUNTEER">Voluntário</option>
+                            <option value="ADMIN">Admin</option>
+                          </select>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
         </div>
       </div>
+      {availabilityModal && (
+        <div className="modal-overlay" onClick={() => setAvailabilityModal(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3>Disponibilidade de {availabilityModal.name}</h3>
+            <p style={{ fontSize: 13, color: 'var(--color-secondary)', marginTop: -4 }}>
+              Marque os dias da semana em que este voluntário pode ser escalado.
+            </p>
+            <div>
+              {WEEKDAYS.map((day) => (
+                <label
+                  key={day.value}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}
+                >
+                  <input
+                    type="checkbox"
+                    style={{ width: 'auto' }}
+                    checked={availabilityModal.days.includes(day.value)}
+                    onChange={() => toggleAvailabilityDay(day.value)}
+                  />
+                  {day.label}
+                </label>
+              ))}
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn" onClick={saveAvailability} disabled={savingAvailability}>
+                {savingAvailability ? 'Salvando...' : 'Salvar dias da semana'}
+              </button>
+            </div>
+            <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid var(--color-border)' }} />
+            <h3>Bloquear datas específicas</h3>
+            <p style={{ fontSize: 13, color: 'var(--color-secondary)', marginTop: -4 }}>
+              Este voluntário não será escalado nas datas abaixo (ex.: viagem, compromisso pontual).
+            </p>
+            <form onSubmit={addBlockDate} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div>
+                <label>Data inicial</label>
+                <input type="date" value={newBlockDate} onChange={(e) => setNewBlockDate(e.target.value)} required />
+              </div>
+              <div>
+                <label>Data final (opcional)</label>
+                <input
+                  type="date"
+                  value={newBlockEndDate}
+                  onChange={(e) => setNewBlockEndDate(e.target.value)}
+                  min={newBlockDate || undefined}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 120 }}>
+                <label>Motivo (opcional)</label>
+                <input value={newBlockReason} onChange={(e) => setNewBlockReason(e.target.value)} />
+              </div>
+              <button className="btn secondary" type="submit" disabled={savingBlockDate}>
+                {savingBlockDate ? 'Adicionando...' : 'Adicionar'}
+              </button>
+            </form>
+            <ul style={{ marginTop: 12, paddingLeft: 0, listStyle: 'none' }}>
+              {blockDates.length === 0 && (
+                <li style={{ fontSize: 13, color: 'var(--color-secondary)' }}>Nenhuma data bloqueada.</li>
+              )}
+              {blockDates.map((b) => (
+                <li
+                  key={b.id}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}
+                >
+                  <span>
+                    {new Date(b.date).toLocaleDateString('pt-BR')}
+                    {b.endDate ? ` até ${new Date(b.endDate).toLocaleDateString('pt-BR')}` : ''}
+                    {b.reason ? ` — ${b.reason}` : ''}
+                  </span>
+                  <button className="btn danger" onClick={() => removeBlockDate(b.id)} type="button">
+                    Remover
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {availabilityError && <div className="error">{availabilityError}</div>}
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn secondary" onClick={() => setAvailabilityModal(null)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

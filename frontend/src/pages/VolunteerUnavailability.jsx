@@ -4,6 +4,7 @@ import api from '../api/client';
 export default function VolunteerUnavailability() {
   const [items, setItems] = useState([]);
   const [date, setDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
@@ -17,8 +18,9 @@ export default function VolunteerUnavailability() {
     e.preventDefault();
     setError('');
     try {
-      await api.post('/unavailability', { date, reason });
+      await api.post('/unavailability', { date, endDate: endDate || undefined, reason });
       setDate('');
+      setEndDate('');
       setReason('');
       load();
     } catch (err) {
@@ -35,11 +37,15 @@ export default function VolunteerUnavailability() {
     <div>
       <h1>Minha Indisponibilidade</h1>
       <div className="card">
-        <p>Marque os dias em que você não poderá servir. Você não será escalado nessas datas.</p>
+        <p>Marque os dias (ou um período) em que você não poderá servir. Você não será escalado nessas datas.</p>
         <form className="row" onSubmit={handleAdd}>
           <div>
-            <label>Data</label>
+            <label>Data inicial</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          </div>
+          <div>
+            <label>Data final (opcional)</label>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={date || undefined} />
           </div>
           <div style={{ flex: 1 }}>
             <label>Motivo (opcional)</label>
@@ -56,7 +62,7 @@ export default function VolunteerUnavailability() {
         <table>
           <thead>
             <tr>
-              <th>Data</th>
+              <th>Período</th>
               <th>Motivo</th>
               <th></th>
             </tr>
@@ -64,7 +70,12 @@ export default function VolunteerUnavailability() {
           <tbody>
             {items.map((item) => (
               <tr key={item.id}>
-                <td>{new Date(item.date).toLocaleDateString('pt-BR')}</td>
+                <td>
+                  {new Date(item.date).toLocaleDateString('pt-BR')}
+                  {item.endDate && item.endDate !== item.date
+                    ? ` até ${new Date(item.endDate).toLocaleDateString('pt-BR')}`
+                    : ''}
+                </td>
                 <td>{item.reason || '-'}</td>
                 <td>
                   <button className="btn danger" onClick={() => remove(item.id)}>

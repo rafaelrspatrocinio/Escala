@@ -12,14 +12,17 @@ generator client {
 // com valores esperados: Role = "ADMIN" | "VOLUNTEER"; SlotStatus = "PENDING" | "CONFIRMED" | "DECLINED"
 
 model User {
-  id           Int       @id @default(autoincrement())
-  name         String
-  email        String    @unique
-  phone        String
-  passwordHash String
-  role         String    @default("VOLUNTEER")
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now())
+  id                Int       @id @default(autoincrement())
+  name              String
+  email             String    @unique
+  phone             String
+  passwordHash      String
+  role              String    @default("VOLUNTEER")
+  active            Boolean   @default(true)
+  // Dias da semana em que o voluntário está disponível para ser escalado
+  // (0 = domingo ... 6 = sábado). Padrão: disponível todos os dias.
+  availableWeekdays Int[]     @default([0, 1, 2, 3, 4, 5, 6])
+  createdAt         DateTime  @default(now())
 
   ministries     VolunteerMinistry[]
   unavailability Unavailability[]
@@ -68,11 +71,13 @@ model EventMinistryNeed {
 }
 
 model Unavailability {
-  id     Int      @id @default(autoincrement())
+  id     Int       @id @default(autoincrement())
   userId Int
   date   DateTime
+  // Data final do período bloqueado (inclusive). Nula = bloqueio de um único dia (igual a `date`).
+  endDate DateTime?
   reason String?
-  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
 }

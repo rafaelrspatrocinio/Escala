@@ -15,11 +15,17 @@ router.get('/', authRequired, async (req, res) => {
 });
 
 router.post('/', authRequired, async (req, res) => {
-  const { date, reason } = req.body;
+  const { date, endDate, reason } = req.body;
+  const userId = req.user.role === 'ADMIN' && req.body.userId ? Number(req.body.userId) : req.user.id;
   if (!date) return res.status(400).json({ error: 'Data é obrigatória' });
+  const startDate = new Date(date);
+  const parsedEndDate = endDate ? new Date(endDate) : null;
+  if (parsedEndDate && parsedEndDate < startDate) {
+    return res.status(400).json({ error: 'Data final não pode ser antes da data inicial' });
+  }
   try {
     const item = await prisma.unavailability.create({
-      data: { userId: req.user.id, date: new Date(date), reason },
+      data: { userId, date: startDate, endDate: parsedEndDate, reason },
     });
     res.status(201).json(item);
   } catch (err) {

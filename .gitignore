@@ -17,6 +17,14 @@ backend/.wwebjs_cache/
 # Database
 backend/prisma/dev.db
 backend/prisma/dev.db-journal
+backend/backups/
+
+# Dados reais de voluntários (não devem ir pro git)
+Util/
+docs/Lista de voluntarios.pdf
+
+# Python venv (não faz parte do projeto)
+venv/
 
 # IDE
 .idea/

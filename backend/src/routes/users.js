@@ -24,6 +24,7 @@ router.get('/', authRequired, adminOnly, async (req, res) => {
       phone: u.phone,
       role: u.role,
       active: u.active,
+      availableWeekdays: u.availableWeekdays,
       ministries: u.ministries.map((m) => m.ministry),
     }))
   );
@@ -31,7 +32,7 @@ router.get('/', authRequired, adminOnly, async (req, res) => {
 
 router.post('/', authRequired, adminOnly, async (req, res) => {
   try {
-    const { name, email, phone, password, ministryIds } = req.body;
+    const { name, email, phone, password, ministryIds, availableWeekdays } = req.body;
     if (!name || !email || !phone || !password) {
       return res.status(400).json({ error: 'Campos obrigatórios: nome, email, telefone, senha' });
     }
@@ -46,6 +47,9 @@ router.post('/', authRequired, adminOnly, async (req, res) => {
         phone: formatBrazilPhone(phone),
         passwordHash,
         role: 'VOLUNTEER',
+        availableWeekdays: Array.isArray(availableWeekdays)
+          ? availableWeekdays.map(Number)
+          : undefined,
         ministries: ministryIds?.length
           ? { create: ministryIds.map((id) => ({ ministryId: Number(id) })) }
           : undefined,
@@ -59,6 +63,7 @@ router.post('/', authRequired, adminOnly, async (req, res) => {
       phone: user.phone,
       role: user.role,
       active: user.active,
+      availableWeekdays: user.availableWeekdays,
       ministries: user.ministries.map((m) => m.ministry),
     });
   } catch (err) {
@@ -223,7 +228,7 @@ router.put('/:id', authRequired, async (req, res) => {
     if (req.user.role !== 'ADMIN' && req.user.id !== id) {
       return res.status(403).json({ error: 'Sem permissão' });
     }
-    const { name, email, phone, password, active, role, ministryIds } = req.body;
+    const { name, email, phone, password, active, role, ministryIds, availableWeekdays } = req.body;
     const data = {};
     if (name) data.name = name;
     if (phone) data.phone = formatBrazilPhone(phone);
@@ -235,6 +240,11 @@ router.put('/:id', authRequired, async (req, res) => {
     }
     if (typeof active === 'boolean' && req.user.role === 'ADMIN') data.active = active;
     if (role && req.user.role === 'ADMIN') data.role = role;
+    if (Array.isArray(availableWeekdays) && req.user.role === 'ADMIN') {
+      data.availableWeekdays = availableWeekdays
+        .map(Number)
+        .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+    }
 
     const user = await prisma.user.update({
       where: { id },
@@ -263,6 +273,7 @@ router.put('/:id', authRequired, async (req, res) => {
       phone: updated.phone,
       role: updated.role,
       active: updated.active,
+      availableWeekdays: updated.availableWeekdays,
       ministries: updated.ministries.map((m) => m.ministry),
     });
   } catch (err) {
