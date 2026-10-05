@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
+import { formatEventDateTime } from '../utils/datetime';
 
 function emptyNeed() {
   return { ministryId: '', slotsCount: 1 };
@@ -216,7 +217,7 @@ export default function AdminEvents() {
             {events.map((ev) => (
               <tr key={ev.id}>
                 <td>{ev.name}</td>
-                <td>{new Date(ev.date).toLocaleString('pt-BR')}</td>
+                <td>{formatEventDateTime(ev.date)}</td>
                 <td>
                   {ev.needs.map((n) => (
                     <span className="chip" key={n.id}>

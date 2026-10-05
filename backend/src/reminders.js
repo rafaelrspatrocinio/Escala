@@ -4,17 +4,18 @@ const { sendMessage } = require('./whatsapp');
 
 const prisma = new PrismaClient();
 
-function sameDay(a, b) {
+function sameUtcDay(a, b) {
   return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
   );
 }
 
 function formatDateTime(date) {
-  const dateStr = date.toLocaleDateString('pt-BR');
-  const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const pad = (n) => String(n).padStart(2, '0');
+  const dateStr = `${pad(date.getUTCDate())}/${pad(date.getUTCMonth() + 1)}/${date.getUTCFullYear()}`;
+  const timeStr = `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
   return { dateStr, timeStr };
 }
 
@@ -53,7 +54,7 @@ async function sendDayOfReminders() {
     include: { event: true, ministry: true, user: true },
   });
 
-  const todaySlots = slots.filter((slot) => sameDay(new Date(slot.event.date), now));
+  const todaySlots = slots.filter((slot) => sameUtcDay(new Date(slot.event.date), now));
 
   for (const slot of todaySlots) {
     const { timeStr } = formatDateTime(new Date(slot.event.date));

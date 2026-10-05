@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
+import { formatEventDateTime } from '../utils/datetime';
 
 const statusLabel = { PENDING: 'Pendente', CONFIRMED: 'Confirmado', DECLINED: 'Recusado' };
 const statusClass = { PENDING: 'pending', CONFIRMED: 'confirmed', DECLINED: 'declined' };
@@ -38,7 +39,7 @@ export default function VolunteerHome() {
             {slots.map((slot) => (
               <tr key={slot.id}>
                 <td>{slot.event.name}</td>
-                <td>{new Date(slot.event.date).toLocaleString('pt-BR')}</td>
+                <td>{formatEventDateTime(slot.event.date)}</td>
                 <td>{slot.ministry.name}</td>
                 <td>
                   <span className={`badge ${statusClass[slot.status]}`}>{statusLabel[slot.status]}</span>

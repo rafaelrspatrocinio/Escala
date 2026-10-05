@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
+import { formatEventDate } from '../utils/datetime';
 
 export default function VolunteerUnavailability() {
   const [items, setItems] = useState([]);
@@ -71,9 +72,9 @@ export default function VolunteerUnavailability() {
             {items.map((item) => (
               <tr key={item.id}>
                 <td>
-                  {new Date(item.date).toLocaleDateString('pt-BR')}
+                  {formatEventDate(item.date)}
                   {item.endDate && item.endDate !== item.date
-                    ? ` até ${new Date(item.endDate).toLocaleDateString('pt-BR')}`
+                    ? ` até ${formatEventDate(item.endDate)}`
                     : ''}
                 </td>
                 <td>{item.reason || '-'}</td>

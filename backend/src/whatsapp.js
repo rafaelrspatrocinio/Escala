@@ -16,6 +16,12 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function formatEventDateUTC(date) {
+  const d = new Date(date);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+}
+
 function randomDelay() {
   const span = Math.max(0, MAX_DELAY_MS - MIN_DELAY_MS);
   return MIN_DELAY_MS + Math.floor(Math.random() * (span + 1));
@@ -210,7 +216,7 @@ async function handleIncomingMessage(message) {
     await prisma.scheduleSlot.update({ where: { id: slot.id }, data: { status: newStatus } });
 
     const reply = isConfirm
-      ? `Presença confirmada para ${slot.ministry.name} em ${slot.event.name} (${slot.event.date.toLocaleDateString('pt-BR')}). Obrigado!`
+      ? `Presença confirmada para ${slot.ministry.name} em ${slot.event.name} (${formatEventDateUTC(slot.event.date)}). Obrigado!`
       : `Ok, marcamos que você não poderá servir em ${slot.ministry.name} em ${slot.event.name}. Vamos buscar outro voluntário.`;
     await message.reply(reply);
   } catch (err) {

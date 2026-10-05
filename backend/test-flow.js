@@ -106,7 +106,22 @@ async function main() {
   const unavailDel = await req('DELETE', `/unavailability/${unavailId}`, null, volToken);
   assert(unavailDel.status === 204, 'remoção de indisponibilidade');
 
-  // 14. Criar 2º evento e testar recusa
+  // 14. Criar 2º evento (consecutivo ao 1º) e testar recusa
+  // Regra: um voluntário não pode ser escalado em dois eventos consecutivos
+  // (ver PROGRESSO.md parte 22), então é preciso um 2º voluntário no mesmo
+  // ministério para o evento 2 conseguir ser preenchido automaticamente.
+  const email2 = `voluntario2-${rand}@teste.com`;
+  const register2 = await req('POST', '/auth/register', {
+    name: 'Voluntário Teste 2',
+    email: email2,
+    phone: '11999997777',
+    password: 'senha123',
+  });
+  assert(register2.status === 201, 'cadastro do 2º voluntário');
+  const volId2 = register2.body.id;
+  const addToMinistry2 = await req('PUT', `/users/${volId2}`, { ministryIds: [ministryId] }, adminToken);
+  assert(addToMinistry2.status === 200, 'associar 2º voluntário ao ministério');
+
   const event2Date = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
   const event2 = await req('POST', '/events', {
     name: `Culto Teste 2 ${rand}`,
@@ -116,10 +131,13 @@ async function main() {
   const event2Id = event2.body.id;
   const gen2 = await req('POST', `/schedule/generate/${event2Id}`, null, adminToken);
   const slot2 = gen2.body.slots?.[0];
-  assert(slot2 && slot2.userId === volId, 'voluntário escalado no evento 2');
+  assert(
+    slot2 && slot2.userId === volId2,
+    'voluntário diferente foi escalado no evento 2 (não repete quem serviu no evento anterior)'
+  );
 
-  const decline = await req('POST', `/schedule/${slot2.id}/decline`, null, volToken);
-  assert(decline.status === 200 && decline.body.status === 'DECLINED', 'voluntário recusa presença');
+  const decline = await req('POST', `/schedule/${slot2.id}/decline`, null, adminToken);
+  assert(decline.status === 200 && decline.body.status === 'DECLINED', 'recusa de presença no evento 2');
 
   // 15. Admin remove escala
   const delSlot = await req('DELETE', `/schedule/${slot2.id}`, null, adminToken);
@@ -144,6 +162,7 @@ async function main() {
   // Limpeza
   await req('DELETE', `/events/${eventId}`, null, adminToken);
   await req('DELETE', `/events/${event2Id}`, null, adminToken);
+  await req('DELETE', `/users/${volId2}`, null, adminToken);
   await req('DELETE', `/ministries/${ministryId}`, null, adminToken);
 
   console.log('\n' + '='.repeat(50));

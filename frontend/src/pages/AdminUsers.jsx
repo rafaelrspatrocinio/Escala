@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import api from '../api/client';
+import { formatEventDate } from '../utils/datetime';
 import { formatBrazilPhone } from '../utils/phone';
 
 function emptyForm() {
@@ -518,8 +519,8 @@ export default function AdminUsers() {
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}
                 >
                   <span>
-                    {new Date(b.date).toLocaleDateString('pt-BR')}
-                    {b.endDate ? ` até ${new Date(b.endDate).toLocaleDateString('pt-BR')}` : ''}
+                    {formatEventDate(b.date)}
+                    {b.endDate ? ` até ${formatEventDate(b.endDate)}` : ''}
                     {b.reason ? ` — ${b.reason}` : ''}
                   </span>
                   <button className="btn danger" onClick={() => removeBlockDate(b.id)} type="button">

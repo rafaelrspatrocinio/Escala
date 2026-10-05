@@ -2,25 +2,10 @@ const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { authRequired, adminOnly } = require('../middleware/auth');
 const { generateScheduleForEvent, generateScheduleForUpcoming } = require('../scheduler');
-const { sendMessage } = require('../whatsapp');
+const { notifySlot } = require('../notifications');
 
 const router = express.Router();
 const prisma = new PrismaClient();
-
-async function notifySlot(slot) {
-  const dateStr = new Date(slot.event.date).toLocaleDateString('pt-BR');
-  const text = `Olá ${slot.user.name}! Você foi escalado(a) para *${slot.ministry.name}* no evento *${slot.event.name}* em ${dateStr}. Responda SIM para confirmar ou NAO para recusar.`;
-  const result = await sendMessage(slot.user.phone, text);
-  return prisma.scheduleSlot.update({
-    where: { id: slot.id },
-    data: {
-      notified: !!result.sent,
-      notifiedAt: result.sent ? new Date() : null,
-      notificationError: result.sent ? null : result.reason || 'Falha ao enviar notificação',
-    },
-    include: { event: true, ministry: true, user: true },
-  });
-}
 
 router.get('/', authRequired, async (req, res) => {
   const where = {};
@@ -67,7 +52,18 @@ router.post('/:id/notify', authRequired, adminOnly, async (req, res) => {
 router.put('/:id', authRequired, adminOnly, async (req, res) => {
   const { userId, status } = req.body;
   const data = {};
-  if (userId) data.userId = Number(userId);
+  if (userId) {
+    const id = Number(req.params.id);
+    const current = await prisma.scheduleSlot.findUnique({ where: { id } });
+    if (!current) return res.status(404).json({ error: 'Escala não encontrada' });
+    const duplicate = await prisma.scheduleSlot.findFirst({
+      where: { eventId: current.eventId, userId: Number(userId), id: { not: id } },
+    });
+    if (duplicate) {
+      return res.status(409).json({ error: 'Este voluntário já está escalado em outra posição deste evento' });
+    }
+    data.userId = Number(userId);
+  }
   if (status) data.status = status;
   const slot = await prisma.scheduleSlot.update({
     where: { id: Number(req.params.id) },
@@ -101,6 +97,12 @@ router.post('/:id/decline', authRequired, async (req, res) => {
     data: { status: 'DECLINED' },
   });
   res.json(updated);
+});
+
+router.delete('/event/:eventId', authRequired, adminOnly, async (req, res) => {
+  const eventId = Number(req.params.eventId);
+  const result = await prisma.scheduleSlot.deleteMany({ where: { eventId } });
+  res.json({ removed: result.count });
 });
 
 router.delete('/:id', authRequired, adminOnly, async (req, res) => {

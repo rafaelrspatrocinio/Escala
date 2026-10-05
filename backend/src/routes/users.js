@@ -13,7 +13,7 @@ const DEFAULT_IMPORT_PASSWORD = 'mudar123';
 
 router.get('/', authRequired, adminOnly, async (req, res) => {
   const users = await prisma.user.findMany({
-    include: { ministries: { include: { ministry: true } } },
+    include: { ministries: { include: { ministry: true } }, unavailability: true },
     orderBy: { name: 'asc' },
   });
   res.json(
@@ -26,6 +26,7 @@ router.get('/', authRequired, adminOnly, async (req, res) => {
       active: u.active,
       availableWeekdays: u.availableWeekdays,
       ministries: u.ministries.map((m) => m.ministry),
+      unavailability: u.unavailability.map((un) => ({ id: un.id, date: un.date, endDate: un.endDate })),
     }))
   );
 });

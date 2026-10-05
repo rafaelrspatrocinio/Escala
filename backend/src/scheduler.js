@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 function dateOnly(d) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
 function isWithinUnavailability(unavailability, eventDate) {
@@ -10,6 +10,20 @@ function isWithinUnavailability(unavailability, eventDate) {
   const end = unavailability.endDate ? dateOnly(new Date(unavailability.endDate)) : start;
   const day = dateOnly(new Date(eventDate));
   return day >= start && day <= end;
+}
+
+async function getAdjacentAssignedUserIds(event) {
+  const [prevEvent, nextEvent] = await Promise.all([
+    prisma.event.findFirst({ where: { date: { lt: event.date } }, orderBy: { date: 'desc' } }),
+    prisma.event.findFirst({ where: { date: { gt: event.date } }, orderBy: { date: 'asc' } }),
+  ]);
+  const adjacentEventIds = [prevEvent, nextEvent].filter(Boolean).map((e) => e.id);
+  if (!adjacentEventIds.length) return new Set();
+
+  const slots = await prisma.scheduleSlot.findMany({
+    where: { eventId: { in: adjacentEventIds }, status: { not: 'DECLINED' } },
+  });
+  return new Set(slots.map((s) => s.userId));
 }
 
 async function generateScheduleForEvent(eventId) {
@@ -21,6 +35,7 @@ async function generateScheduleForEvent(eventId) {
 
   const existingSlots = await prisma.scheduleSlot.findMany({ where: { eventId } });
   const alreadyAssignedUserIds = new Set(existingSlots.map((s) => s.userId));
+  const adjacentAssignedUserIds = await getAdjacentAssignedUserIds(event);
 
   const createdSlots = [];
 
@@ -34,11 +49,12 @@ async function generateScheduleForEvent(eventId) {
       include: { user: { include: { unavailability: true, scheduleSlots: true } } },
     });
 
-    const eventWeekday = new Date(event.date).getDay();
+    const eventWeekday = new Date(event.date).getUTCDay();
 
     const candidates = volunteerLinks
       .map((link) => link.user)
       .filter((user) => !alreadyAssignedUserIds.has(user.id))
+      .filter((user) => !adjacentAssignedUserIds.has(user.id))
       .filter((user) => !user.unavailability.some((u) => isWithinUnavailability(u, event.date)))
       .filter((user) => (user.availableWeekdays ?? []).includes(eventWeekday))
       .map((user) => {
