@@ -59,6 +59,7 @@ export default function AdminSchedule() {
   const [exportingId, setExportingId] = useState(null);
   const exportRefs = useRef({});
   const [weekStart, setWeekStart] = useState(() => new Date().toISOString().slice(0, 10));
+  const [weekLayout, setWeekLayout] = useState('vertical');
   const [exportingWeek, setExportingWeek] = useState(false);
   const weekExportRef = useRef(null);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -249,6 +250,13 @@ export default function AdminSchedule() {
   const { start: weekRangeStart, end: weekRangeEndExclusive } = getWeekRange();
   const weekRangeEnd = new Date(weekRangeEndExclusive);
   weekRangeEnd.setUTCDate(weekRangeEnd.getUTCDate() - 1);
+  const weekColumns = weekLayout === 'horizontal' ? Math.min(weekEvents.length, 3) || 1 : 1;
+  const weekCardWidth = 280;
+  const weekCardGap = 16;
+  const weekExportWidth =
+    weekLayout === 'horizontal'
+      ? weekColumns * weekCardWidth + (weekColumns - 1) * weekCardGap + 48
+      : 520;
 
   return (
     <div>
@@ -268,6 +276,13 @@ export default function AdminSchedule() {
           <label>
             Semana a partir de:{' '}
             <input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
+          </label>
+          <label>
+            Layout:{' '}
+            <select value={weekLayout} onChange={(e) => setWeekLayout(e.target.value)}>
+              <option value="vertical">Um embaixo do outro</option>
+              <option value="horizontal">Lado a lado</option>
+            </select>
           </label>
           <button
             className="btn secondary"
@@ -451,7 +466,8 @@ export default function AdminSchedule() {
           position: 'fixed',
           top: 0,
           left: '-9999px',
-          width: 520,
+          width: weekExportWidth,
+          boxSizing: 'border-box',
           background: '#ffffff',
           padding: 24,
           fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
@@ -467,58 +483,73 @@ export default function AdminSchedule() {
         {weekEvents.length === 0 && (
           <div style={{ fontSize: 14, color: '#6b7280' }}>Nenhum evento nessa semana.</div>
         )}
-        {weekEvents.map((ev) => {
-          const eventSlots = sortByMinistry(slots.filter((s) => s.eventId === ev.id));
-          return (
-            <div key={ev.id} style={{ marginBottom: 20 }}>
+        <div
+          style={
+            weekLayout === 'horizontal'
+              ? { display: 'flex', flexWrap: 'wrap', gap: weekCardGap }
+              : undefined
+          }
+        >
+          {weekEvents.map((ev) => {
+            const eventSlots = sortByMinistry(slots.filter((s) => s.eventId === ev.id));
+            return (
               <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  padding: '6px 0',
-                  borderBottom: '2px solid #1a1a1a',
-                  marginBottom: 6,
-                }}
+                key={ev.id}
+                style={
+                  weekLayout === 'horizontal'
+                    ? { width: weekCardWidth, marginBottom: 20 }
+                    : { marginBottom: 20 }
+                }
               >
-                {ev.name} — {formatEventDateTime(ev.date)}
-              </div>
-              {eventSlots.length === 0 && (
-                <div style={{ fontSize: 13, color: '#6b7280', padding: '6px 0' }}>Sem escala gerada.</div>
-              )}
-              {eventSlots.map((slot) => (
                 <div
-                  key={slot.id}
                   style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '8px 0',
-                    borderBottom: '1px solid #e4e7eb',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    padding: '6px 0',
+                    borderBottom: '2px solid #1a1a1a',
+                    marginBottom: 6,
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>{slot.ministry.name}</div>
-                    <div style={{ fontSize: 15, fontWeight: 600 }}>{slot.user?.name || '—'}</div>
-                  </div>
-                  <span
+                  {ev.name} — {formatEventDateTime(ev.date)}
+                </div>
+                {eventSlots.length === 0 && (
+                  <div style={{ fontSize: 13, color: '#6b7280', padding: '6px 0' }}>Sem escala gerada.</div>
+                )}
+                {eventSlots.map((slot) => (
+                  <div
+                    key={slot.id}
                     style={{
-                      padding: '3px 12px',
-                      borderRadius: 12,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      background:
-                        slot.status === 'CONFIRMED' ? '#d1fae5' : slot.status === 'DECLINED' ? '#fee2e2' : '#fef3c7',
-                      color:
-                        slot.status === 'CONFIRMED' ? '#065f46' : slot.status === 'DECLINED' ? '#991b1b' : '#92400e',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 0',
+                      borderBottom: '1px solid #e4e7eb',
                     }}
                   >
-                    {statusLabel[slot.status]}
-                  </span>
-                </div>
-              ))}
-            </div>
-          );
-        })}
+                    <div>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>{slot.ministry.name}</div>
+                      <div style={{ fontSize: 15, fontWeight: 600 }}>{slot.user?.name || '—'}</div>
+                    </div>
+                    <span
+                      style={{
+                        padding: '3px 12px',
+                        borderRadius: 12,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background:
+                          slot.status === 'CONFIRMED' ? '#d1fae5' : slot.status === 'DECLINED' ? '#fee2e2' : '#fef3c7',
+                        color:
+                          slot.status === 'CONFIRMED' ? '#065f46' : slot.status === 'DECLINED' ? '#991b1b' : '#92400e',
+                      }}
+                    >
+                      {statusLabel[slot.status]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {editingEvent && (
