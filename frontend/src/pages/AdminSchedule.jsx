@@ -16,8 +16,20 @@ function toLocalDatetimeInput(dateStr) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
+const MINISTRY_PRIORITY = ['iluminação', 'projeção'];
+
+function ministryRank(name) {
+  const normalized = (name || '').trim().toLowerCase();
+  const idx = MINISTRY_PRIORITY.indexOf(normalized);
+  return idx === -1 ? MINISTRY_PRIORITY.length : idx;
+}
+
 function sortByMinistry(slotList) {
-  return [...slotList].sort((a, b) => a.ministry.name.localeCompare(b.ministry.name, 'pt-BR'));
+  return [...slotList].sort((a, b) => {
+    const rankDiff = ministryRank(a.ministry.name) - ministryRank(b.ministry.name);
+    if (rankDiff !== 0) return rankDiff;
+    return a.ministry.name.localeCompare(b.ministry.name, 'pt-BR');
+  });
 }
 
 function dateOnlyUTC(d) {
