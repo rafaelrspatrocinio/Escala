@@ -78,6 +78,20 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 07/10/2026 (parte 24 — layout vertical/horizontal na exportação da escala semanal) — commit `c93d91e`
+- Pedido: na exportação de imagem da escala da semana (parte 15), poder escolher entre os eventos empilhados (um embaixo do outro) ou lado a lado.
+- `frontend/src/pages/AdminSchedule.jsx`: novo estado `weekLayout` ('vertical' | 'horizontal') e `<select>` "Layout" ao lado do campo de data, no card "Exportar escala da semana (imagem)".
+  - `weekColumns`/`weekCardWidth`/`weekCardGap`/`weekExportWidth` calculam a largura do template de exportação dinamicamente: no modo vertical mantém a largura fixa de 520px (como antes); no modo horizontal, usa até 3 colunas de 280px lado a lado (`flex-wrap`), largura total ajustada conforme a quantidade de eventos da semana.
+  - Template de exportação (`weekExportRef`) envolvido num `<div>` com `display: flex; flex-wrap: wrap` quando horizontal (cada evento com `width: weekCardWidth`), ou comportamento antigo (coluna única) quando vertical.
+- Testado nesta sessão: não documentado explicitamente no commit (sem detalhes de build/teste no histórico do git para esta parte).
+- Commit feito (title: "Adiciona opcao de layout (vertical/horizontal) na exportacao da escala semanal").
+
+### Sessão de 07/10/2026 (parte 23 — prioriza Iluminação e Projeção na ordenação por ministério) — commit `58030de`
+- Pedido: na ordenação por ministério (parte 16), os ministérios "Iluminação" e "Projeção" devem aparecer primeiro, antes dos demais em ordem alfabética.
+- `frontend/src/pages/AdminSchedule.jsx`: nova constante `MINISTRY_PRIORITY = ['iluminação', 'projeção']` e função `ministryRank(name)` (normaliza em minúsculas/trim e retorna o índice na lista de prioridade, ou `MINISTRY_PRIORITY.length` se não estiver nela). `sortByMinistry` passou a ordenar primeiro por `ministryRank` (diferença de rank) e só cai no `localeCompare('pt-BR')` alfabético quando os ranks são iguais — afeta os três lugares que usam essa função (tabela principal, export de imagem individual e export da semana).
+- Testado nesta sessão: não documentado explicitamente no commit.
+- Commit feito (title: "Prioriza Iluminacao e Projecao na ordenacao da escala por ministerio").
+
 ### Sessão de 05/10/2026 (parte 22 — escala automática não repete voluntário em eventos consecutivos)
 - Pedido: na escala automática, garantir que um voluntário não seja atribuído a dois eventos consecutivos.
 - `backend/src/scheduler.js`: nova função `getAdjacentAssignedUserIds(event)` — busca o evento imediatamente **anterior** e o imediatamente **posterior** a `event.date` (entre todos os eventos cadastrados, não só do mesmo ministério/tipo) e retorna o conjunto de `userId` já escalados (status diferente de `DECLINED`) em qualquer um dos dois. `generateScheduleForEvent` passou a excluir esses usuários da lista de candidatos (filtro adicional, junto com ministério/indisponibilidade/dia da semana já existentes) antes de ordenar por "menos vezes serviu" e escolher quem preencher as vagas.
