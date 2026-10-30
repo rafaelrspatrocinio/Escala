@@ -34,6 +34,9 @@ export default function AdminUsers() {
   const [newBlockEndDate, setNewBlockEndDate] = useState('');
   const [newBlockReason, setNewBlockReason] = useState('');
   const [savingBlockDate, setSavingBlockDate] = useState(false);
+  const [weekdayFilter, setWeekdayFilter] = useState(1);
+  const [weekdayOnlyActive, setWeekdayOnlyActive] = useState(true);
+  const [weekdayMinistryFilter, setWeekdayMinistryFilter] = useState('');
 
   function load() {
     api.get('/users').then((res) => setUsers(res.data));
@@ -211,6 +214,11 @@ export default function AdminUsers() {
     }
   }
 
+  const weekdayUsers = users
+    .filter((u) => (u.availableWeekdays?.length ? u.availableWeekdays : [0, 1, 2, 3, 4, 5, 6]).includes(weekdayFilter))
+    .filter((u) => !weekdayOnlyActive || u.active)
+    .filter((u) => !weekdayMinistryFilter || u.ministries.some((m) => m.id === Number(weekdayMinistryFilter)));
+
   return (
     <div>
       <h1>Voluntários</h1>
@@ -312,6 +320,75 @@ export default function AdminUsers() {
             )}
           </div>
         )}
+      </div>
+      <div className="card">
+        <h3>Disponibilidade por dia da semana</h3>
+        <p style={{ fontSize: 13, color: 'var(--color-secondary)', marginTop: -4 }}>
+          Veja rapidamente quem pode ser escalado em um determinado dia da semana.
+        </p>
+        <div className="row" style={{ alignItems: 'flex-end', gap: 12 }}>
+          <div>
+            <label>Dia da semana</label>
+            <select value={weekdayFilter} onChange={(e) => setWeekdayFilter(Number(e.target.value))}>
+              {WEEKDAYS.map((day) => (
+                <option key={day.value} value={day.value}>
+                  {day.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label>Ministério</label>
+            <select value={weekdayMinistryFilter} onChange={(e) => setWeekdayMinistryFilter(e.target.value)}>
+              <option value="">Todos</option>
+              {ministries.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, marginBottom: 8 }}>
+            <input
+              type="checkbox"
+              style={{ width: 'auto' }}
+              checked={weekdayOnlyActive}
+              onChange={(e) => setWeekdayOnlyActive(e.target.checked)}
+            />
+            Somente ativos
+          </label>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--color-secondary)', margin: '8px 0' }}>
+          {weekdayUsers.length} voluntário(s) disponível(is) {WEEKDAYS.find((d) => d.value === weekdayFilter)?.label.toLowerCase()}
+          {weekdayMinistryFilter ? ` em ${ministries.find((m) => m.id === Number(weekdayMinistryFilter))?.name}` : ''}.
+        </p>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Ministérios</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {weekdayUsers.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.name}</td>
+                  <td>{u.ministries.map((m) => <span className="chip" key={m.id}>{m.name}</span>)}</td>
+                  <td>{u.active ? 'Ativo' : 'Inativo'}</td>
+                </tr>
+              ))}
+              {weekdayUsers.length === 0 && (
+                <tr>
+                  <td colSpan={3} style={{ color: 'var(--color-secondary)' }}>
+                    Nenhum voluntário disponível nesse dia.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
       {error && editing && <div className="error">{error}</div>}
       <div className="card">

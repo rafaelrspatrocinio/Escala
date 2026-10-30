@@ -78,6 +78,13 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 30/10/2026 (parte 25 — card de disponibilidade por dia da semana em Admin > Voluntários)
+- Pedido: na aba Voluntários, poder ver todos os voluntários disponíveis num determinado dia da semana (ex.: "quem está disponível às segundas").
+- `frontend/src/pages/AdminUsers.jsx`: novo card "Disponibilidade por dia da semana" (entre o card de Exportar/Importar CSV e a tabela principal) — `<select>` com os dias da semana (reaproveita `WEEKDAYS` já existente) + checkbox "Somente ativos" (marcado por padrão); lista (`weekdayUsers`, filtra `users` por `availableWeekdays.includes(weekdayFilter)`, default `[0..6]` quando o campo vier vazio) em tabela com Nome/Ministérios/Status, mostrando a contagem de voluntários disponíveis naquele dia. Somente leitura — não altera a feature de edição de disponibilidade (botão "Disponibilidade" por linha, parte 10/11/12) já existente, apenas oferece uma visão agregada por dia sem precisar abrir usuário por usuário.
+- Não precisou de mudança de backend — `GET /users` já retornava `availableWeekdays` de cada usuário.
+- Testado nesta sessão: `npx vite build` do frontend concluído sem erros.
+- Nenhum commit feito nesta sessão (padrão mantido).
+
 ### Sessão de 07/10/2026 (parte 24 — layout vertical/horizontal na exportação da escala semanal) — commit `c93d91e`
 - Pedido: na exportação de imagem da escala da semana (parte 15), poder escolher entre os eventos empilhados (um embaixo do outro) ou lado a lado.
 - `frontend/src/pages/AdminSchedule.jsx`: novo estado `weekLayout` ('vertical' | 'horizontal') e `<select>` "Layout" ao lado do campo de data, no card "Exportar escala da semana (imagem)".
