@@ -78,6 +78,15 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 30/10/2026 (parte 28 — ajustes finos de contraste/cor + reposicionamento do bloco de disponibilidade)
+- Pedido do usuário após o redesign da parte 27: "ficou muito branco" e depois "pode melhorar?" + mover o bloco "Disponibilidade por dia da semana" para o final da página.
+- `frontend/src/index.css`:
+  - Mais contraste: fundo da página mais escuro (`--color-bg: #eef0f3`), bordas de cards/inputs mais visíveis (`--color-border`/`--color-input-border` escurecidos), sombra dos cards mais perceptível, cabeçalho de tabela com fundo próprio, chips com borda.
+  - Cor de destaque índigo adicionada (`--color-primary: #4338ca`, nova `--color-primary-bg: #eef2ff`): botão primário, link ativo da navbar, anel de foco dos inputs, hover de linha de tabela, chips de ministério e borda superior dos cards (3px) passaram a usar o accent em vez de preto/cinza neutro.
+- `frontend/src/pages/AdminUsers.jsx`: bloco "Disponibilidade por dia da semana" (filtro dia/ministério + tabela) movido de entre o card de Exportar/Importar CSV e a tabela principal para **depois** da tabela principal de voluntários, antes do modal de disponibilidade individual — sem mudança de lógica/estado, só reordenação de JSX.
+- Testado nesta sessão: `npx vite build` sem erros em cada etapa; rebuild de `escala-frontend` (`docker build` manual) e container recriado a cada ajuste; `GET http://localhost:8080/api/health` → `200 ok`.
+- Nenhum commit feito durante os ajustes incrementais — consolidado num único commit ao final, a pedido do usuário.
+
 ### Sessão de 30/10/2026 (parte 27 — redesign visual mais clean)
 - Pedido: interface mais clean em todo o app.
 - `frontend/src/index.css` reescrito (design system global, sem mudança de classes/JSX nas páginas):
