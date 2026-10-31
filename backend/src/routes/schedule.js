@@ -49,6 +49,18 @@ router.post('/:id/notify', authRequired, adminOnly, async (req, res) => {
   res.json(updated);
 });
 
+router.post('/event/:eventId/notify', authRequired, adminOnly, async (req, res) => {
+  const eventId = Number(req.params.eventId);
+  const slots = await prisma.scheduleSlot.findMany({
+    where: { eventId, status: { not: 'DECLINED' } },
+    include: { event: true, ministry: true, user: true },
+  });
+  if (!slots.length) return res.status(404).json({ error: 'Nenhum voluntário escalado neste evento' });
+  const updated = await Promise.all(slots.map(notifySlot));
+  const sent = updated.filter((s) => s.notified).length;
+  res.json({ total: updated.length, sent, failed: updated.length - sent, slots: updated });
+});
+
 router.put('/:id', authRequired, adminOnly, async (req, res) => {
   const { userId, status } = req.body;
   const data = {};

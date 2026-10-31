@@ -65,6 +65,7 @@ export default function AdminSchedule() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [editError, setEditError] = useState('');
   const [savingEvent, setSavingEvent] = useState(false);
+  const [notifyingEventId, setNotifyingEventId] = useState(null);
 
   function load() {
     api.get('/events').then((res) => setEvents(res.data));
@@ -181,6 +182,21 @@ export default function AdminSchedule() {
       load();
     } catch (err) {
       setMessage(err.response?.data?.error || 'Erro ao reenviar notificação');
+    }
+  }
+
+  async function notifyAllForEvent(ev) {
+    if (!confirm(`Enviar notificação para todos os voluntários escalados em "${ev.name}"?`)) return;
+    setNotifyingEventId(ev.id);
+    setMessage('Enviando notificações...');
+    try {
+      const res = await api.post(`/schedule/event/${ev.id}/notify`);
+      setMessage(`${res.data.sent} de ${res.data.total} voluntário(s) notificado(s) com sucesso.`);
+      load();
+    } catch (err) {
+      setMessage(err.response?.data?.error || 'Erro ao enviar notificações');
+    } finally {
+      setNotifyingEventId(null);
     }
   }
 
@@ -313,6 +329,13 @@ export default function AdminSchedule() {
                 </button>
                 <button className="btn secondary" onClick={() => generateForEvent(ev.id)}>
                   Gerar/completar escala deste evento
+                </button>
+                <button
+                  className="btn secondary"
+                  disabled={eventSlots.length === 0 || notifyingEventId === ev.id}
+                  onClick={() => notifyAllForEvent(ev)}
+                >
+                  {notifyingEventId === ev.id ? 'Enviando...' : 'Notificar todos'}
                 </button>
                 <button
                   className="btn secondary"
