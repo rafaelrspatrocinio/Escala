@@ -78,6 +78,22 @@ Stack completa com Docker validada e funcionando (backend + frontend + nginx rev
 
 ## Log de sessões
 
+### Sessão de 30/10/2026 (parte 27 — redesign visual mais clean)
+- Pedido: interface mais clean em todo o app.
+- `frontend/src/index.css` reescrito (design system global, sem mudança de classes/JSX nas páginas):
+  - Navbar trocada de fundo preto sólido para fundo branco com borda inferior sutil (`position: sticky`), links em cinza que escurecem no hover/active (sublinhado fino em vez de bloco colorido).
+  - Cards: borda sutil (`var(--color-border)`) + sombra bem mais leve (antes `0 1px 3px rgba(0,0,0,.1)`, agora quase imperceptível), `radius` maior (14px) e mais padding.
+  - Botões: `secondary` passou de cinza sólido para outline (fundo branco, borda cinza); `danger` passou de vermelho sólido para outline vermelho; todos com `transition` suave e estado `disabled` com opacidade.
+  - Inputs/selects: anel de foco (`box-shadow`) em vez de apenas trocar a borda.
+  - Labels: uppercase, letter-spacing, cor secundária (visual mais "sistema de design" do que formulário cru).
+  - Tabelas: cabeçalho uppercase/cinza, linhas com `hover` sutil, última linha sem borda inferior.
+  - Badges/chips: uppercase leve, cores de fundo mais claras (ex. sucesso de `#d1fae5` para `#ecfdf5`).
+  - Modal: sombra mais pronunciada só no modal (profundidade), fundo do overlay levemente mais escuro.
+  - Paleta e espaçamentos centralizados em `:root` (mesmas variáveis já existentes, só valores recalibrados) — nenhuma classe/estrutura HTML mudou, então nenhuma página (`AdminSchedule`, `AdminUsers`, etc.) precisou de alteração de JSX.
+- Verificado que os templates de exportação de imagem (`AdminSchedule.jsx`, cabeçalho preto `#1a1a1a`/`#000000` do PNG exportado) são independentes do tema do app (cores fixas, só usadas pelo `html2canvas`) — não foram alterados, mantêm o visual da imagem exportada estável.
+- Testado nesta sessão: `npx vite build` sem erros; rebuild de `escala-frontend` (`docker build` manual) e container recriado na rede `escala-net`; `GET http://localhost:8080/api/health` → `200 ok`.
+- Nenhum commit feito nesta sessão (a confirmar com o usuário).
+
 ### Sessão de 30/10/2026 (parte 26 — botão "Notificar todos" por evento em Admin > Escala)
 - Pedido: botão em cada evento para enviar notificação WhatsApp a todos os voluntários já escalados naquele evento, de uma vez.
 - `backend/src/routes/schedule.js`: nova rota `POST /schedule/event/:eventId/notify` (admin) — busca todos os `ScheduleSlot` do evento com `status != DECLINED`, chama `notifySlot` (já existente em `backend/src/notifications.js`, mesma função usada no reenvio individual) para cada um via `Promise.all`, e retorna `{ total, sent, failed, slots }`. `404` se não houver nenhum voluntário escalado.
